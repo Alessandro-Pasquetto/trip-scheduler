@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Trip Scheduler</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+        }
+
+        /* TOP BAR */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: #1e2a38;
+            color: white;
+        }
+
+        .day-btn {
+            padding: 8px 12px;
+            background: #4a90e2;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .day-btn.active {
+            background: #28a745;
+        }
+
+        /* CENTER SETUP */
+        .setup-wrapper {
+            height: 45vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .setup-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 320px;
+        }
+
+        .setup-card h2 {
+            margin-bottom: 10px;
+        }
+
+        .setup-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        /* GRID */
+        .grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .hour {
+            border-bottom: 1px solid #eee;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+
+        .cell {
+            border-bottom: 1px solid #eee;
+            border-left: 1px solid #eee;
+            padding: 10px;
+            min-height: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <div id="daysBar"></div>
+</div>
+
+<!-- CENTER FORM -->
+<div class="setup-wrapper" id="setup">
+    <div class="setup-card">
+        <h2>Create your trip</h2>
+        <p>Enter how many days your trip will last</p>
+
+        <input type="number" id="daysInput" placeholder="Number of days" min="1">
+
+        <button onclick="generateTrip()">Create itinerary</button>
+    </div>
+</div>
+
+<!-- GRID -->
+<div id="gridContainer"></div>
+
+<script>
+    let days = 0;
+    let currentDay = 1;
+
+    function generateTrip() {
+        days = parseInt(document.getElementById("daysInput").value);
+
+        if (!days || days <= 0) return;
+
+        document.getElementById("setup").style.display = "none";
+
+        createDaysBar();
+        renderGrid();
+    }
+
+    function createDaysBar() {
+        const bar = document.getElementById("daysBar");
+        bar.innerHTML = "";
+
+        for (let i = 1; i <= days; i++) {
+            const btn = document.createElement("div");
+            btn.className = "day-btn";
+            if (i === 1) btn.classList.add("active");
+
+            btn.innerText = "Day " + i;
+
+            btn.onclick = () => {
+                currentDay = i;
+                updateActiveDay();
+                renderGrid();
+            };
+
+            bar.appendChild(btn);
+        }
+    }
+
+    function updateActiveDay() {
+        document.querySelectorAll(".day-btn").forEach((btn, index) => {
+            btn.classList.toggle("active", index + 1 === currentDay);
+        });
+    }
+
+    function renderGrid() {
+        const container = document.getElementById("gridContainer");
+
+        let html = `<div class="grid">`;
+
+        for (let hour = 0; hour < 24; hour++) {
+            html += `
+                <div class="hour">${hour}:00</div>
+                <div class="cell"></div>
+            `;
+        }
+
+        html += `</div>`;
+
+        container.innerHTML = html;
+    }
+</script>
+
+</body>
+</html>
