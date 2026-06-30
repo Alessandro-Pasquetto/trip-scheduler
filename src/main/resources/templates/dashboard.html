@@ -1,195 +1,570 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - Trip Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Vacation Planner</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
-        body {
+        *{
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
-        /* TOP BAR */
-        .topbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 15px;
-            background: #1e2a38;
+        body{
+            background: #0f172a;
             color: white;
-        }
-
-        .day-btn {
-            padding: 8px 12px;
-            background: #4a90e2;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .day-btn.active {
-            background: #28a745;
-        }
-
-        /* CENTER SETUP */
-        .setup-wrapper {
-            height: 45vh;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        .setup-card {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            text-align: center;
-            width: 320px;
-        }
+        #backBtn{
+            position: fixed;
+            top: 20px;
+            left: 20px;
 
-        .setup-card h2 {
-            margin-bottom: 10px;
-        }
+            padding: 10px 18px;
 
-        .setup-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        input {
-            padding: 10px;
-            width: 100%;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            text-align: center;
-            font-size: 16px;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #28a745;
-            border: none;
+            background: #334155;
             color: white;
-            border-radius: 6px;
+
+            border: none;
+            border-radius: 8px;
+
             cursor: pointer;
             font-size: 16px;
         }
 
-        button:hover {
-            background: #218838;
+        #backBtn:hover{
+            background: #475569;
         }
 
-        /* GRID */
-        .grid {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            margin: 20px;
-            background: white;
+        .container{
+            width: 95%;
+            max-width: 900px;
+        }
+
+        h1{
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 34px;
+        }
+
+        hr{
+            border: none;
+            border-top: 1px solid #334155;
+            margin-bottom: 25px;
+        }
+
+        #calendarView{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #calendarView.hidden {
+            display:  none;
+        }
+
+        #calendar{
+            display: none;
+        }
+
+        #confirmBtn{
+            margin-top: 20px;
+            padding: 12px 20px;
+            border: none;
             border-radius: 8px;
+            background: #f59e0b;
+            color: black;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #confirmBtn: hover{
+            background: #fb923c;
+        }
+
+        .hidden{
+            display: none;
+        }
+
+        .day-bar{
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        .day-bar button{
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #334155;
+            color: white;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .day-bar button.active{
+            background: #f59e0b;
+            color: black;
+        }
+
+        .schedule-view{
+            margin-top: 20px;
+        }
+
+        .schedule-header{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #addActivity{
+            background: #f59e0b;
+            color: black;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            cursor: pointer;
+        }
+
+        table{
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+        }
+
+        th{
+            background: #334155;
+        }
+
+        th, td{
+            border: 1px solid #334155;
+            padding: 12px;
+        }
+
+        .modal{
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content{
+            width: 350px;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .modal-content h2{
+            margin-bottom: 15px;
+        }
+
+        .modal-content label{
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 5px;
+        }
+
+        .modal-content input{
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .modal-content button{
+            width: 100%;
+            margin-top: 18px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #f59e0b;
+            cursor: pointer;
+        }
+
+        .activityCell{
+            position: relative;
+            height: 60px;
+            overflow: visible;
+        }
+
+        .activity{
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            background: #f59e0b;
+            color: black;
+            border-radius: 8px;
+            padding: 6px;
+            font-size: 14px;
             overflow: hidden;
+            z-index: 10;
+            min-height: 20px;
         }
 
-        .hour {
-            border-bottom: 1px solid #eee;
-            padding: 10px;
-            background: #f8f9fa;
-        }
-
-        .cell {
-            border-bottom: 1px solid #eee;
-            border-left: 1px solid #eee;
-            padding: 10px;
-            min-height: 40px;
-        }
     </style>
 </head>
 
 <body>
+    <button id="backBtn">← Back</button>
 
-<!-- TOP BAR -->
-<div class="topbar">
-    <div id="daysBar"></div>
-</div>
+    <div class="container">
+        <div id="calendarView" class="hidden">
+            <h1>Select your vacation dates</h1>
+            <hr>
+            <input id="calendar">
+            <button id="confirmBtn">Confirm</button>
+        </div>
 
-<!-- CENTER FORM -->
-<div class="setup-wrapper" id="setup">
-    <div class="setup-card">
-        <h2>Create your trip</h2>
-        <p>Enter how many days your trip will last</p>
+        <div class="schedule-view hidden">
+            <h1>Dates</h1>
+            <div class="day-bar"></div>
 
-        <input type="number" id="daysInput" placeholder="Number of days" min="1">
+            <div class="schedule-header">
+                <h2 id="dayTitle"></h2>
 
-        <button onclick="generateTrip()">Create itinerary</button>
+                <button id="addActivity">+ Add Activity</button>
+            </div>
+
+            <table>
+                <thead>
+                <tr>
+                    <th style="width: 90px">Time</th>
+                    <th>Activity</th>
+                </tr>
+                </thead>
+
+                <tbody id="scheduleBody"></tbody>
+            </table>
+        </div>
     </div>
-</div>
 
-<!-- GRID -->
-<div id="gridContainer"></div>
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>Add Activity</h2>
 
-<script>
-    let days = 0;
-    let currentDay = 1;
+            <label>Activity</label>
 
-    function generateTrip() {
-        days = parseInt(document.getElementById("daysInput").value);
+            <input type="text" id="activityName" placeholder="Museum">
 
-        if (!days || days <= 0) return;
+            <label>Start Time</label>
 
-        document.getElementById("setup").style.display = "none";
+            <input type="time" id="startTime">
 
-        createDaysBar();
-        renderGrid();
-    }
+            <label>End Time</label>
 
-    function createDaysBar() {
-        const bar = document.getElementById("daysBar");
-        bar.innerHTML = "";
+            <input type="time" id="endTime">
 
-        for (let i = 1; i <= days; i++) {
-            const btn = document.createElement("div");
-            btn.className = "day-btn";
-            if (i === 1) btn.classList.add("active");
+            <button id="saveActivity">Save Activity</button>
+        </div>
+    </div>
 
-            btn.innerText = "Day " + i;
+    <script src="/scripts/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-            btn.onclick = () => {
-                currentDay = i;
-                updateActiveDay();
-                renderGrid();
-            };
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get("mode");
+        const idPlan = params.get("idPlan");
 
-            bar.appendChild(btn);
+        let startDate = null;
+        let endDate = null;
+
+        let days = [];
+        let currentIndex = 0;
+
+        let tripPlan = {
+            startDate: null,
+            endDate: null,
+            activities: []
+        };
+
+        const calendarView = document.getElementById("calendarView");
+        const dayBar = document.querySelector(".day-bar");
+        const scheduleView = document.querySelector(".schedule-view");
+        const dayTitle = document.getElementById("dayTitle");
+        const scheduleBody = document.getElementById("scheduleBody");
+
+        const modal = document.getElementById("modal");
+
+        document.getElementById("backBtn").onclick = function(){
+            if(!scheduleView.classList.contains("hidden")){
+                scheduleView.classList.add("hidden");
+                calendarView.classList.remove("hidden");
+            }
+            else{
+                window.history.back();
+            }
+        };
+
+        function showCreatePlanView(){
+            calendarView.classList.remove("hidden");
         }
-    }
 
-    function updateActiveDay() {
-        document.querySelectorAll(".day-btn").forEach((btn, index) => {
-            btn.classList.toggle("active", index + 1 === currentDay);
+        function hideCreatePlanView(){
+            calendarView.classList.add("hidden");
+        }
+
+        function showScheduleView(){
+            scheduleView.classList.remove("hidden");
+        }
+
+        function formatDate(date){
+            const months = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            ];
+
+            return date.getDate() + " " + months[date.getMonth()];
+        }
+
+        function getDateKey(date){
+            return date.toISOString().split("T")[0];
+        }
+
+        function getDatesBetween(start,end){
+            let result = [];
+            let current = new Date(start);
+
+            while(current <= end){
+                result.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+
+            return result;
+        }
+
+        flatpickr("#calendar", {
+            inline : true,
+            mode : "range",
+            dateFormat : "Y-m-d",
+
+            onChange(selected){
+                if(selected.length === 2){
+                    startDate = selected[0];
+                    endDate = selected[1];
+                }
+            }
         });
-    }
 
-    function renderGrid() {
-        const container = document.getElementById("gridContainer");
+        document.getElementById("confirmBtn").onclick = function(){
+            if(!startDate || !endDate){
+                alert("Select a date range.");
+                return;
+            }
 
-        let html = `<div class="grid">`;
+            days = getDatesBetween(startDate, endDate);
 
-        for (let hour = 0; hour < 24; hour++) {
-            html += `
-                <div class="hour">${hour}:00</div>
-                <div class="cell"></div>
-            `;
+            hideCreatePlanView();
+            showScheduleView();
+
+            currentIndex = 0;
+
+            renderBar();
+            renderSchedule();
+
+            tripPlan.startDate = startDate;
+            tripPlan.endDate = endDate;
+            tripPlan.activities = [];
+
+            saveTrip();
+        };
+
+        function renderBar(){
+            dayBar.innerHTML = "";
+
+            days.forEach((day, index) => {
+                const button = document.createElement("button");
+                button.textContent = formatDate(day);
+
+                if(index === currentIndex){
+                    button.classList.add("active");
+                }
+
+                button.onclick = function(){
+                    currentIndex = index;
+
+                    renderBar();
+                    renderSchedule();
+                };
+
+                dayBar.appendChild(button);
+            });
         }
 
-        html += `</div>`;
+        function renderSchedule(){
+            dayTitle.textContent = formatDate(days[currentIndex]);
+            scheduleBody.innerHTML = "";
 
-        container.innerHTML = html;
-    }
-</script>
+            const today = getDateKey(days[currentIndex]);
 
+            for(let hour=0; hour <= 23; hour++){
+                const row = document.createElement("tr");
+                const time = document.createElement("td");
+                const activity = document.createElement("td");
+
+                time.textContent = String(hour).padStart(2, "0") + ":00";
+
+                activity.className = "activityCell";
+
+                row.appendChild(time);
+                row.appendChild(activity);
+                scheduleBody.appendChild(row);
+
+                const found = tripPlan.activities.filter(x => {
+                    return x.day === today && parseInt(x.start.split(":")[0]) === hour;
+                });
+
+                found.forEach(item=>{
+                    const div = document.createElement("div");
+                    div.className = "activity";
+
+                    const startParts = item.start.split(":");
+                    const endParts = item.end.split(":");
+
+                    const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+                    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+
+                    const offset = startMinutes % 60;
+
+                    const duration = endMinutes - startMinutes;
+
+                    // 1 minute = 1px
+                    div.style.top = offset + "px";
+                    div.style.height = duration + "px";
+
+                    div.innerHTML =
+                        "<strong>" + item.name + "</strong><br>" +
+                        item.start + " - " + item.end;
+
+                    activity.appendChild(div);
+                });
+            }
+        }
+
+        document.getElementById("addActivity").onclick = function(){
+            document.getElementById("activityName").value = "";
+            document.getElementById("startTime").value = "09:00";
+            document.getElementById("endTime").value = "10:00";
+
+            modal.style.display = "flex";
+        };
+
+        window.onclick = function(e){
+            if(e.target === modal){
+                modal.style.display = "none";
+            }
+        };
+
+        document.getElementById("saveActivity").onclick = function(){
+            const name = document.getElementById("activityName").value;
+            const start = document.getElementById("startTime").value;
+            const end = document.getElementById("endTime").value;
+
+            if(name === ""){
+                alert("Insert an activity.");
+                return;
+            }
+
+            tripPlan.activities.push({
+                day : getDateKey(days[currentIndex]),
+                name : name,
+                start : start,
+                end : end
+            });
+
+            modal.style.display = "none";
+            renderSchedule();
+
+            saveTrip();
+        };
+
+        function saveTrip(){
+            if(isLoggedIn()){
+                //saveTripToDB(); todo
+            }else{
+                localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
+            }
+        }
+
+        function loadTrip(){
+            if(isLoggedIn() && mode === "edit"){
+                //loadTripFromDB(); todo
+            }else{
+                const saved = localStorage.getItem("tripPlan");
+
+                if(saved){
+                    tripPlan = JSON.parse(saved);
+
+                    startDate = new Date(tripPlan.startDate);
+                    endDate = new Date(tripPlan.endDate);
+                    days = getDatesBetween(startDate, endDate);
+
+                    renderBar();
+                    renderSchedule();
+
+                    showScheduleView();
+                }else{
+                    showCreatePlanView();
+                }
+            }
+        }
+
+        async function saveTripToDB(){
+            const response = await fetch(`/api/trip-plan/${tripPlan.id}`, {
+                method:"PUT",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify(tripPlan)
+            });
+
+            if(!response.ok){
+                console.error("Failed to save trip plan to database", response.status);
+            }
+        }
+
+        /* todo
+        async function loadTripFromDB(){
+            const response = await fetch(`/api/trip-plan/${idPlan}`);
+
+            if(!response.ok){
+                console.error("Failed to load trip plan from database", response.status);
+                showCreatePlanView();
+                return;
+            }
+
+            tripPlan = await response.json();
+
+            startDate = new Date(tripPlan.startDate);
+            endDate = new Date(tripPlan.endDate);
+            days = getDatesBetween(startDate,endDate);
+
+            renderBar();
+            renderSchedule();
+
+            showScheduleView();
+        }
+         */
+
+        // ===== Dashboard init =====
+        loadTrip();
+    </script>
 </body>
 </html>
