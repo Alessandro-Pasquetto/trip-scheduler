@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 
 <head>
     <meta charset="UTF-8">
@@ -89,7 +89,7 @@
             cursor: pointer;
         }
 
-        #confirmBtn: hover{
+        #confirmBtn hover{
             background: #fb923c;
         }
 
@@ -278,7 +278,11 @@
     <script src="/scripts/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-    <script>
+    <script th:inline="javascript">
+        const isLogged = /*[[${isLogged}]]*/ false;
+
+        alert(isLogged); // todo da rimuovere
+
         const params = new URLSearchParams(window.location.search);
         const mode = params.get("mode");
         const idPlan = params.get("idPlan");
@@ -496,7 +500,7 @@
         };
 
         function saveTrip(){
-            if(isLoggedIn()){
+            if(isLogged){
                 //saveTripToDB(); todo
             }else{
                 localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
@@ -504,7 +508,7 @@
         }
 
         function loadTrip(){
-            if(isLoggedIn() && mode === "edit"){
+            if(isLogged && mode === "edit"){
                 //loadTripFromDB(); todo
             }else{
                 const saved = localStorage.getItem("tripPlan");
