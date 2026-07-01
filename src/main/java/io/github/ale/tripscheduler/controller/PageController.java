@@ -13,7 +13,7 @@ public class PageController {
     @GetMapping({"", "/"})
     public String index(Authentication authentication) {
         if(isLogged(authentication))
-            return "home";
+            return "redirect:/home";
 
         return "index";
     }
@@ -21,7 +21,7 @@ public class PageController {
     @GetMapping("/login")
     public String login(Authentication authentication) {
         if(isLogged(authentication))
-            return "home";
+            return "redirect:/home";
 
         return "login";
     }
@@ -29,7 +29,7 @@ public class PageController {
     @GetMapping("/register")
     public String register(Authentication authentication) {
         if(isLogged(authentication))
-            return "home";
+            return "redirect:/home";
 
         return "register";
     }
