@@ -2,9 +2,211 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Plans</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #eef1f4;
+            color: #333;
+        }
+
+        .header {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background .2s;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+
+        .new-plan-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 16px;
+            border: none;
+            border-radius: 10px;
+            background: #28a745;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background .2s;
+        }
+
+        .new-plan-btn:hover {
+            background: #218838;
+        }
+
+        .new-plan-btn:disabled {
+            background: #8d8d8d;
+            cursor: not-allowed;
+        }
+
+        .card {
+            background: white;
+            margin-bottom: 12px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            border-left: 6px solid #4dabf7;
+            transition: transform .15s ease;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: scale(1.02);
+        }
+
+        .title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .meta {
+            margin-top: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .loading, .empty {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+    </style>
+
 </head>
 <body>
-    Home
+
+<header class="header">
+    <div>My Plans</div>
+
+    <form action="/logout" method="post" class="logout-form">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <button type="submit" class="logout-btn">Logout</button>
+    </form>
+</header>
+
+<div class="container">
+    <button id="newPlanBtn" class="new-plan-btn">+ Create New Plan</button>
+
+    <div id="plansContainer">
+        <div class="loading">Loading plans...</div>
+    </div>
+</div>
+
+<script>
+    const plansContainer = document.getElementById("plansContainer");
+    const newPlanBtn = document.getElementById("newPlanBtn");
+
+    loadPlans();
+
+    async function loadPlans() {
+        plansContainer.innerHTML = '<div class="loading">Loading plans...</div>';
+
+        try {
+            const response = await fetch(`/api/trip-plans`);
+
+            if (!response.ok)
+                throw new Error("Unable to load plans.");
+
+            const plans = await response.json();
+
+            if (!plans.length) {
+                plansContainer.innerHTML =
+                    '<div class="empty">No plans available.</div>';
+                return;
+            }
+
+            plansContainer.innerHTML = "";
+
+            plans.forEach(plan => {
+                const card = document.createElement("div");
+                card.className = "card";
+
+                card.innerHTML = `
+                    <h3 class="title">${plan.name || "Untitled Plan"}</h3>
+                    <div class="meta">
+                        ID: ${plan.id}
+                    </div>
+                `;
+
+                card.addEventListener("click", () => {
+                    window.location.href = `/plan-editor/${plan.id}`;
+                });
+
+                plansContainer.appendChild(card);
+            });
+
+        } catch (error) {
+            plansContainer.innerHTML =
+                `<div class="empty">${error.message}</div>`;
+        }
+    }
+
+    newPlanBtn.addEventListener("click", createPlan);
+
+    async function createPlan() {
+        newPlanBtn.disabled = true;
+        newPlanBtn.textContent = "Creating...";
+
+        try {
+            const response = await fetch(`/api/trip-plans`, {
+                method: "POST",
+            });
+
+            if (!response.ok)
+                throw new Error("Failed to create the plan.");
+
+            const idPlan = await response.json();
+
+            window.location.href = `/plan-editor/${idPlan}`;
+
+        } catch (error) {
+            alert(error.message);
+
+            newPlanBtn.disabled = false;
+            newPlanBtn.textContent = "+ Create New Plan";
+        }
+    }
+</script>
+
 </body>
 </html>

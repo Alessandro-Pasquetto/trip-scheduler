@@ -7,15 +7,15 @@ CREATE TABLE user_account (
 CREATE TABLE trip_plan (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    start_date DATE,
+    end_date DATE,
 
     CONSTRAINT fk_trip_plan_user
        FOREIGN KEY(user_id)
            REFERENCES user_account(id)
            ON DELETE CASCADE
 );
-
 
 CREATE TABLE activity (
     id SERIAL PRIMARY KEY,

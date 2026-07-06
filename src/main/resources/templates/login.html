@@ -98,14 +98,18 @@
     <div class="card">
         <h1>Login</h1>
 
-        <form method="post" th:action="@{/login}">
-            <div th:if="${param.error}" class="error" id="errorMessage">Invalid username or password</div>
+        <form action="/login" method="post">
+            <div th:if="${param.error}" class="error">
+                Invalid username or password
+            </div>
 
             <label for="username">Username</label>
             <input type="text" id="username" name="username" placeholder="Enter your username" required>
 
             <label for="password">Password</label>
             <input type="password" id="password" name="password" placeholder="Enter your password" required>
+
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
             <button type="submit">Login</button>
         </form>

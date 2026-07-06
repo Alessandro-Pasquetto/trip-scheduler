@@ -1,36 +1,27 @@
 package io.github.ale.tripscheduler.controller;
 
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
 @RequestMapping("")
 public class PageController {
 
-    @GetMapping({"", "/"})
-    public String index(Authentication authentication) {
-        if(isLogged(authentication))
-            return "redirect:/home";
-
+    @GetMapping
+    public String index() {
         return "index";
     }
 
     @GetMapping("/login")
-    public String login(Authentication authentication) {
-        if(isLogged(authentication))
-            return "redirect:/home";
-
+    public String login() {
         return "login";
     }
 
     @GetMapping("/register")
-    public String register(Authentication authentication) {
-        if(isLogged(authentication))
-            return "redirect:/home";
-
+    public String register() {
         return "register";
     }
 
@@ -39,16 +30,16 @@ public class PageController {
         return "home";
     }
 
-    @GetMapping("/dashboard")
-    public String dashboard(Model model, Authentication authentication) {
-        model.addAttribute("isLogged", isLogged(authentication));
-
-        return "dashboard";
+    @GetMapping("/plan-editor")
+    public String planEditor() {
+        return "plan-editor";
     }
 
-    private boolean isLogged(Authentication authentication) {
-        return authentication != null
-                && authentication.isAuthenticated()
-                && !authentication.getName().equals("anonymousUser");
+    @GetMapping("/plan-editor/{idPlan}")
+    public String planEditor(@PathVariable Long idPlan,
+                             Model model) {
+
+        model.addAttribute("idPlan", idPlan);
+        return "plan-editor";
     }
 }

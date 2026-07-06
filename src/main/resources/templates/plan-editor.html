@@ -279,21 +279,12 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <script th:inline="javascript">
-        const isLogged = /*[[${isLogged}]]*/ false;
-
-        alert(isLogged); // todo da rimuovere
-
-        const params = new URLSearchParams(window.location.search);
-        const mode = params.get("mode");
-        const idPlan = params.get("idPlan");
-
-        let startDate = null;
-        let endDate = null;
-
         let days = [];
         let currentIndex = 0;
 
         let tripPlan = {
+            id: /*[[${idPlan}]]*/ null,
+            name: null,
             startDate: null,
             endDate: null,
             activities: []
@@ -304,90 +295,79 @@
         const scheduleView = document.querySelector(".schedule-view");
         const dayTitle = document.getElementById("dayTitle");
         const scheduleBody = document.getElementById("scheduleBody");
-
         const modal = document.getElementById("modal");
 
+        loadTrip();
+
         document.getElementById("backBtn").onclick = function(){
-            if(!scheduleView.classList.contains("hidden")){
-                scheduleView.classList.add("hidden");
-                calendarView.classList.remove("hidden");
-            }
-            else{
+            savePlan();
+
+            if(tripPlan.id != null)
+                window.location.href = "/home";
+            else
                 window.history.back();
-            }
         };
 
-        function showCreatePlanView(){
-            calendarView.classList.remove("hidden");
-        }
-
-        function hideCreatePlanView(){
-            calendarView.classList.add("hidden");
-        }
-
-        function showScheduleView(){
-            scheduleView.classList.remove("hidden");
-        }
-
-        function formatDate(date){
-            const months = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-            ];
-
-            return date.getDate() + " " + months[date.getMonth()];
-        }
-
-        function getDateKey(date){
-            return date.toISOString().split("T")[0];
-        }
-
-        function getDatesBetween(start,end){
-            let result = [];
-            let current = new Date(start);
-
-            while(current <= end){
-                result.push(new Date(current));
-                current.setDate(current.getDate() + 1);
-            }
-
-            return result;
-        }
-
         flatpickr("#calendar", {
-            inline : true,
-            mode : "range",
-            dateFormat : "Y-m-d",
+            inline: true,
+            mode: "range",
+            dateFormat: "Y-m-d",
 
-            onChange(selected){
-                if(selected.length === 2){
-                    startDate = selected[0];
-                    endDate = selected[1];
+            onChange(selectedDates, dateStr) {
+                if (selectedDates.length === 2) {
+                    const [startDate, endDate] = dateStr.split(" to ");
+
+                    tripPlan.startDate = startDate;
+                    tripPlan.endDate = endDate;
                 }
             }
         });
 
         document.getElementById("confirmBtn").onclick = function(){
-            if(!startDate || !endDate){
+            if(!tripPlan.startDate || !tripPlan.endDate){
                 alert("Select a date range.");
                 return;
             }
 
-            days = getDatesBetween(startDate, endDate);
+            savePlan();
 
-            hideCreatePlanView();
+            hideCalendarPlanView();
             showScheduleView();
+        };
 
-            currentIndex = 0;
+        document.getElementById("addActivity").onclick = function(){
+            document.getElementById("activityName").value = "";
+            document.getElementById("startTime").value = "09:00";
+            document.getElementById("endTime").value = "10:00";
 
-            renderBar();
+            modal.style.display = "flex";
+        };
+
+        window.onclick = function(e){
+            if(e.target === modal){
+                modal.style.display = "none";
+            }
+        };
+
+        document.getElementById("saveActivity").onclick = function(){
+            const name = document.getElementById("activityName").value;
+            const startTime = document.getElementById("startTime").value;
+            const endTime = document.getElementById("endTime").value;
+
+            if(name === ""){
+                alert("Insert an activity.");
+                return;
+            }
+
+            tripPlan.activities.push({
+                day : getDateKey(days[currentIndex]),
+                name : name,
+                startTime : startTime,
+                endTime : endTime
+            });
+
+            modal.style.display = "none";
             renderSchedule();
-
-            tripPlan.startDate = startDate;
-            tripPlan.endDate = endDate;
-            tripPlan.activities = [];
-
-            saveTrip();
         };
 
         function renderBar(){
@@ -397,9 +377,8 @@
                 const button = document.createElement("button");
                 button.textContent = formatDate(day);
 
-                if(index === currentIndex){
+                if(index === currentIndex)
                     button.classList.add("active");
-                }
 
                 button.onclick = function(){
                     currentIndex = index;
@@ -432,15 +411,15 @@
                 scheduleBody.appendChild(row);
 
                 const found = tripPlan.activities.filter(x => {
-                    return x.day === today && parseInt(x.start.split(":")[0]) === hour;
+                    return x.day === today && parseInt(x.startTime.split(":")[0]) === hour;
                 });
 
                 found.forEach(item=>{
                     const div = document.createElement("div");
                     div.className = "activity";
 
-                    const startParts = item.start.split(":");
-                    const endParts = item.end.split(":");
+                    const startParts = item.startTime.split(":");
+                    const endParts = item.endTime.split(":");
 
                     const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
                     const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
@@ -455,120 +434,111 @@
 
                     div.innerHTML =
                         "<strong>" + item.name + "</strong><br>" +
-                        item.start + " - " + item.end;
+                        item.startTime + " - " + item.endTime;
 
                     activity.appendChild(div);
                 });
             }
         }
 
-        document.getElementById("addActivity").onclick = function(){
-            document.getElementById("activityName").value = "";
-            document.getElementById("startTime").value = "09:00";
-            document.getElementById("endTime").value = "10:00";
-
-            modal.style.display = "flex";
-        };
-
-        window.onclick = function(e){
-            if(e.target === modal){
-                modal.style.display = "none";
-            }
-        };
-
-        document.getElementById("saveActivity").onclick = function(){
-            const name = document.getElementById("activityName").value;
-            const start = document.getElementById("startTime").value;
-            const end = document.getElementById("endTime").value;
-
-            if(name === ""){
-                alert("Insert an activity.");
-                return;
-            }
-
-            tripPlan.activities.push({
-                day : getDateKey(days[currentIndex]),
-                name : name,
-                start : start,
-                end : end
-            });
-
-            modal.style.display = "none";
-            renderSchedule();
-
-            saveTrip();
-        };
-
-        function saveTrip(){
-            if(isLogged){
-                //saveTripToDB(); todo
-            }else{
-                localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
-            }
+        function showCalendarView(){
+            calendarView.classList.remove("hidden");
         }
 
-        function loadTrip(){
-            if(isLogged && mode === "edit"){
-                //loadTripFromDB(); todo
-            }else{
-                const saved = localStorage.getItem("tripPlan");
-
-                if(saved){
-                    tripPlan = JSON.parse(saved);
-
-                    startDate = new Date(tripPlan.startDate);
-                    endDate = new Date(tripPlan.endDate);
-                    days = getDatesBetween(startDate, endDate);
-
-                    renderBar();
-                    renderSchedule();
-
-                    showScheduleView();
-                }else{
-                    showCreatePlanView();
-                }
-            }
+        function hideCalendarPlanView(){
+            calendarView.classList.add("hidden");
         }
 
-        async function saveTripToDB(){
-            const response = await fetch(`/api/trip-plan/${tripPlan.id}`, {
-                method:"PUT",
-                headers:{
-                    "Content-Type":"application/json"
-                },
-                body:JSON.stringify(tripPlan)
-            });
-
-            if(!response.ok){
-                console.error("Failed to save trip plan to database", response.status);
-            }
-        }
-
-        /* todo
-        async function loadTripFromDB(){
-            const response = await fetch(`/api/trip-plan/${idPlan}`);
-
-            if(!response.ok){
-                console.error("Failed to load trip plan from database", response.status);
-                showCreatePlanView();
-                return;
-            }
-
-            tripPlan = await response.json();
-
-            startDate = new Date(tripPlan.startDate);
-            endDate = new Date(tripPlan.endDate);
-            days = getDatesBetween(startDate,endDate);
-
+        function showScheduleView(){
+            days = getDatesBetween(tripPlan.startDate, tripPlan.endDate);
             renderBar();
             renderSchedule();
-
-            showScheduleView();
+            scheduleView.classList.remove("hidden");
         }
-         */
 
-        // ===== Dashboard init =====
-        loadTrip();
+        function formatDate(date){
+            const months = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            ];
+
+            return date.getDate() + " " + months[date.getMonth()];
+        }
+
+        function getDateKey(date){
+            return date.toISOString().split("T")[0];
+        }
+
+        function getDatesBetween(startDate, endDate) {
+            const result = [];
+
+            const current = new Date(startDate);
+            const last = new Date(endDate);
+
+            while (current <= last) {
+                result.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+
+            return result;
+        }
+
+        async function savePlan(){
+            if(tripPlan.id != null)
+                await saveTripToDB();
+            else
+                localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
+        }
+
+        async function loadTrip() {
+            if (tripPlan.id != null)
+                await loadTripFromDB();
+            else {
+                const saved = localStorage.getItem("tripPlan");
+
+                if (saved)
+                    tripPlan = JSON.parse(saved);
+            }
+
+            if (!tripPlan.startDate)
+                showCalendarView();
+            else
+                showScheduleView();
+        }
+
+        async function saveTripToDB() {
+            try {
+                const response = await fetch(`/api/trip-plans/${tripPlan.id}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(tripPlan)
+                });
+
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+                tripPlan = await response.json();
+            } catch (err) {
+                console.error("Failed to save trip plan", err);
+            }
+        }
+
+        async function loadTripFromDB() {
+            try {
+                const response = await fetch(`/api/trip-plans/${tripPlan.id}`);
+
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+                tripPlan = await response.json();
+            } catch (err) {
+                console.error("Failed to load trip plan from DB", err);
+                window.location.href = "/home";
+            }
+        }
+
     </script>
 </body>
 </html>
