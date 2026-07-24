@@ -79,6 +79,7 @@
         }
 
         .card {
+            position: relative;
             background: white;
             margin-bottom: 12px;
             padding: 15px;
@@ -91,6 +92,24 @@
 
         .card:hover {
             transform: scale(1.02);
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            color: #dc3545;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            color: #a71d2a;
         }
 
         .title {
@@ -162,14 +181,45 @@
                 card.className = "card";
 
                 card.innerHTML = `
+                    <button class="delete-btn" title="Delete plan">✕</button>
+
                     <h3 class="title">${plan.name || "Untitled Plan"}</h3>
-                    <div class="meta">
-                        ID: ${plan.id}
-                    </div>
+
+                    <div class="meta">ID: ${plan.id}</div>
                 `;
 
                 card.addEventListener("click", () => {
                     window.location.href = `/plan-editor/${plan.id}`;
+                });
+
+                const deleteBtn = card.querySelector(".delete-btn");
+
+                deleteBtn.addEventListener("click", async function(e) {
+                    e.stopPropagation();
+
+                    const confirmDelete = confirm("Delete this plan?");
+
+                    if (!confirmDelete)
+                        return;
+
+                    try {
+                        const response = await fetch(`/api/trip-plans/${plan.id}`, {
+                            method: "DELETE"
+                        });
+
+                        if (!response.ok)
+                            throw new Error("Failed to delete plan.");
+
+                        card.remove();
+
+                        if (plansContainer.children.length === 0) {
+                            plansContainer.innerHTML =
+                                '<div class="empty">No plans available.</div>';
+                        }
+
+                    } catch(error) {
+                        alert(error.message);
+                    }
                 });
 
                 plansContainer.appendChild(card);

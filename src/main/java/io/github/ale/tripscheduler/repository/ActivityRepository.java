@@ -10,5 +10,6 @@ import java.util.List;
 public interface ActivityRepository extends JpaRepository<Activity, Long>{
 
     List<Activity> findByTripPlanId(Long tripPlanId);
+    void deleteByTripPlanId(Long tripPlanId);
 
 }

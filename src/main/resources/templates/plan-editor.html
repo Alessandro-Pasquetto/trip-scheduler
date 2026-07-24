@@ -26,7 +26,7 @@
             align-items: center;
         }
 
-        #backBtn{
+        #finishBtn{
             position: fixed;
             top: 20px;
             left: 20px;
@@ -43,7 +43,7 @@
             font-size: 16px;
         }
 
-        #backBtn:hover{
+        #finishBtn:hover{
             background: #475569;
         }
 
@@ -74,10 +74,6 @@
             display:  none;
         }
 
-        #calendar{
-            display: none;
-        }
-
         #confirmBtn{
             margin-top: 20px;
             padding: 12px 20px;
@@ -89,7 +85,7 @@
             cursor: pointer;
         }
 
-        #confirmBtn hover{
+        #confirmBtn:hover{
             background: #fb923c;
         }
 
@@ -162,6 +158,7 @@
             display: none;
             justify-content: center;
             align-items: center;
+            z-index: 2;
         }
 
         .modal-content{
@@ -214,21 +211,37 @@
             padding: 6px;
             font-size: 14px;
             overflow: hidden;
-            z-index: 10;
+            z-index: 1;
             min-height: 20px;
+            cursor: pointer;
+        }
+
+        .deleteActivity {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            color: #991b1b;
+            user-select: none;
+        }
+
+        .deleteActivity:hover {
+            color: red;
         }
 
     </style>
 </head>
 
 <body>
-    <button id="backBtn">← Back</button>
+    <button id="finishBtn">← Finish</button>
 
     <div class="container">
         <div id="calendarView" class="hidden">
             <h1>Select your vacation dates</h1>
             <hr>
-            <input id="calendar">
+            <div id="calendar"></div>
             <button id="confirmBtn">Confirm</button>
         </div>
 
@@ -257,7 +270,7 @@
 
     <div class="modal" id="modal">
         <div class="modal-content">
-            <h2>Add Activity</h2>
+            <h2 id="modalTitle"></h2>
 
             <label>Activity</label>
 
@@ -281,6 +294,7 @@
     <script th:inline="javascript">
         let days = [];
         let currentIndex = 0;
+        let editingActivity = null;
 
         let tripPlan = {
             id: /*[[${idPlan}]]*/ null,
@@ -299,7 +313,7 @@
 
         loadTrip();
 
-        document.getElementById("backBtn").onclick = function(){
+        document.getElementById("finishBtn").onclick = function(){
             savePlan();
 
             if(tripPlan.id != null)
@@ -336,9 +350,12 @@
         };
 
         document.getElementById("addActivity").onclick = function(){
+            editingActivity = null;
+
+            document.getElementById("modalTitle").textContent = "Add Activity";
             document.getElementById("activityName").value = "";
-            document.getElementById("startTime").value = "09:00";
-            document.getElementById("endTime").value = "10:00";
+            document.getElementById("startTime").value = "";
+            document.getElementById("endTime").value = "";
 
             modal.style.display = "flex";
         };
@@ -359,12 +376,20 @@
                 return;
             }
 
-            tripPlan.activities.push({
-                day : getDateKey(days[currentIndex]),
-                name : name,
-                startTime : startTime,
-                endTime : endTime
-            });
+            if (editingActivity) {
+                editingActivity.name = name;
+                editingActivity.startTime = startTime;
+                editingActivity.endTime = endTime;
+
+                editingActivity = null;
+            } else {
+                tripPlan.activities.push({
+                    day: getDateKey(days[currentIndex]),
+                    name: name,
+                    startTime: startTime,
+                    endTime: endTime
+                });
+            }
 
             modal.style.display = "none";
             renderSchedule();
@@ -432,9 +457,42 @@
                     div.style.top = offset + "px";
                     div.style.height = duration + "px";
 
-                    div.innerHTML =
-                        "<strong>" + item.name + "</strong><br>" +
-                        item.startTime + " - " + item.endTime;
+                    const deleteBtn = document.createElement("span");
+                    deleteBtn.className = "deleteActivity";
+                    deleteBtn.textContent = "✕";
+
+                    deleteBtn.onclick = function(e){
+                        e.stopPropagation();
+
+                        tripPlan.activities = tripPlan.activities.filter(activity =>
+                            !(activity.day === item.day &&
+                                activity.name === item.name &&
+                                activity.startTime === item.startTime &&
+                                activity.endTime === item.endTime)
+                        );
+
+                        renderSchedule();
+                    };
+
+                    div.appendChild(deleteBtn);
+
+                    const title = document.createElement("strong");
+                    title.textContent = item.name;
+
+                    div.appendChild(title);
+                    div.appendChild(document.createElement("br"));
+                    div.append(item.startTime.substring(0, 5) + " - " + item.endTime.substring(0, 5));
+
+                    div.onclick = function () {
+                        editingActivity = item;
+
+                        document.getElementById("modalTitle").textContent = "Edit Activity";
+                        document.getElementById("activityName").value = item.name;
+                        document.getElementById("startTime").value = item.startTime;
+                        document.getElementById("endTime").value = item.endTime;
+
+                        modal.style.display = "flex";
+                    };
 
                     activity.appendChild(div);
                 });

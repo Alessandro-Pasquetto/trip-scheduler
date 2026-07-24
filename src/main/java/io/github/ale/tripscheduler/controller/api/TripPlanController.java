@@ -53,4 +53,14 @@ public class TripPlanController {
 
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/{planId}")
+    public ResponseEntity<Void> deleteTripPlan(Authentication authentication,
+                                               @PathVariable Long planId) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        tripPlanService.deleteTripPlan(userDetails.getId(), planId);
+
+        return ResponseEntity.noContent().build();
+    }
 }

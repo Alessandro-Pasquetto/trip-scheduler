@@ -11,6 +11,8 @@ import io.github.ale.tripscheduler.repository.ActivityRepository;
 import io.github.ale.tripscheduler.repository.TripPlanRepository;
 import io.github.ale.tripscheduler.repository.UserAccountRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -186,5 +188,15 @@ public class TripPlanService {
                         .endTime(a.getEndTime())
                         .build())
                 .toList();
+    }
+
+    @Transactional
+    public void deleteTripPlan(Long userId, Long planId) {
+
+        TripPlan plan = tripPlanRepository.findByIdAndUserId(planId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        activityRepository.deleteByTripPlanId(planId);
+        tripPlanRepository.delete(plan);
     }
 }
