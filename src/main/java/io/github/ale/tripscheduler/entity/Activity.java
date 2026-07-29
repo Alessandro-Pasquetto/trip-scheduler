@@ -1,5 +1,6 @@
 package io.github.ale.tripscheduler.entity;
 
+import io.github.ale.tripscheduler.enums.ActivityCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -29,4 +30,10 @@ public class Activity {
 
     @Column(nullable = false)
     private LocalTime endTime;
+
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ActivityCategory category;
 }

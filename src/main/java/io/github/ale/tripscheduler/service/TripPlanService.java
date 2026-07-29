@@ -55,9 +55,9 @@ public class TripPlanService {
                 .endDate(null)
                 .build();
 
-        TripPlan saved = tripPlanRepository.save(tripPlan);
+        TripPlan savedPlan = tripPlanRepository.save(tripPlan);
 
-        return saved.getId();
+        return savedPlan.getId();
     }
 
     public TripPlanDetailResponse getPlan(Long userId, Long planId) {
@@ -74,12 +74,14 @@ public class TripPlanService {
                 .endDate(tripPlan.getEndDate())
                 .activities(
                         activities.stream()
-                                .map(a -> ActivityDto.builder()
-                                        .id(a.getId())
-                                        .name(a.getName())
-                                        .day(a.getDay())
-                                        .startTime(a.getStartTime())
-                                        .endTime(a.getEndTime())
+                                .map(activity -> ActivityDto.builder()
+                                        .id(activity.getId())
+                                        .name(activity.getName())
+                                        .day(activity.getDay())
+                                        .startTime(activity.getStartTime())
+                                        .endTime(activity.getEndTime())
+                                        .description(activity.getDescription())
+                                        .category(activity.getCategory())
                                         .build())
                                 .toList()
                 )
@@ -88,7 +90,7 @@ public class TripPlanService {
         return tripPlanDetailResponse;
     }
 
-    public TripPlanDetailResponse updateTripPlan(Long userId, Long planId, UpdateTripPlanRequest request) {
+    public TripPlanDetailResponse updateTripPlan(Long userId, Long planId, UpdateTripPlanRequest tripPlan) {
 
         TripPlan existingPlan = tripPlanRepository.findByIdAndUserId(planId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
@@ -96,14 +98,14 @@ public class TripPlanService {
         TripPlan updatedPlan = TripPlan.builder()
                 .id(existingPlan.getId())
                 .user(existingPlan.getUser())
-                .name(request.getName())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
+                .name(tripPlan.getName())
+                .startDate(tripPlan.getStartDate())
+                .endDate(tripPlan.getEndDate())
                 .build();
 
         TripPlan savedPlan = tripPlanRepository.save(updatedPlan);
 
-        List<ActivityDto> updatedPlanActivities = updatePlanActivities(savedPlan, request.getActivities());
+        List<ActivityDto> updatedPlanActivities = updatePlanActivities(savedPlan, tripPlan.getActivities());
 
         TripPlanDetailResponse tripPlanDetailResponse = TripPlanDetailResponse.builder()
                 .id(savedPlan.getId())
@@ -112,12 +114,14 @@ public class TripPlanService {
                 .endDate(savedPlan.getEndDate())
                 .activities(
                         updatedPlanActivities.stream()
-                                .map(a -> ActivityDto.builder()
-                                        .id(a.getId())
-                                        .name(a.getName())
-                                        .day(a.getDay())
-                                        .startTime(a.getStartTime())
-                                        .endTime(a.getEndTime())
+                                .map(activity -> ActivityDto.builder()
+                                        .id(activity.getId())
+                                        .name(activity.getName())
+                                        .day(activity.getDay())
+                                        .startTime(activity.getStartTime())
+                                        .endTime(activity.getEndTime())
+                                        .description(activity.getDescription())
+                                        .category(activity.getCategory())
                                         .build())
                                 .toList()
                 )
@@ -126,66 +130,73 @@ public class TripPlanService {
         return tripPlanDetailResponse;
     }
 
-    private List<ActivityDto> updatePlanActivities(TripPlan savedPlan, List<ActivityDto> requestActivities) {
+    private List<ActivityDto> updatePlanActivities(TripPlan savedPlan, List<ActivityDto> activities) {
 
         List<Activity> existingActivities = activityRepository.findByTripPlanId(savedPlan.getId());
 
-        if (requestActivities == null || requestActivities.isEmpty()) {
+        if (activities == null || activities.isEmpty()) {
             activityRepository.deleteAll(existingActivities);
             return Collections.emptyList();
         }
 
-        Map<Long, Activity> existingMap = existingActivities.stream()
-                .collect(Collectors.toMap(Activity::getId, a -> a));
+        Map<Long, Activity> existingActivitiesMap = existingActivities.stream()
+                .collect(Collectors.toMap(Activity::getId, activity -> activity));
 
-        Set<Long> requestIds = requestActivities.stream()
-                .filter(a -> a.getId() != null)
+        Set<Long> requestIds = activities.stream()
+                .filter(activity -> activity.getId() != null)
                 .map(ActivityDto::getId)
                 .collect(Collectors.toSet());
 
         // DELETE
-        List<Activity> toDelete = existingActivities.stream()
-                .filter(a -> !requestIds.contains(a.getId()))
+        List<Activity> activitiesToDelete = existingActivities.stream()
+                .filter(activity -> !requestIds.contains(activity.getId()))
                 .toList();
 
-        activityRepository.deleteAll(toDelete);
+        activityRepository.deleteAll(activitiesToDelete);
 
-        List<Activity> toSave = new ArrayList<>();
+        // ADD AND EDIT
+        List<Activity> activitiesToSave = new ArrayList<>();
 
-        for (ActivityDto dto : requestActivities) {
-            if (dto.getId() == null) {
+        for (ActivityDto activity : activities) {
+            if (activity.getId() == null) {
                 Activity newActivity = Activity.builder()
                         .tripPlan(savedPlan)
-                        .name(dto.getName())
-                        .day(dto.getDay())
-                        .startTime(dto.getStartTime())
-                        .endTime(dto.getEndTime())
+                        .name(activity.getName())
+                        .day(activity.getDay())
+                        .startTime(activity.getStartTime())
+                        .endTime(activity.getEndTime())
+                        .description(activity.getDescription())
+                        .category(activity.getCategory())
                         .build();
 
-                toSave.add(newActivity);
+                activitiesToSave.add(newActivity);
             } else {
-                Activity existing = existingMap.get(dto.getId());
+                Activity existing = existingActivitiesMap.get(activity.getId());
 
                 if (existing != null) {
-                    existing.setName(dto.getName());
-                    existing.setDay(dto.getDay());
-                    existing.setStartTime(dto.getStartTime());
-                    existing.setEndTime(dto.getEndTime());
+                    existing.setName(activity.getName());
+                    existing.setDay(activity.getDay());
+                    existing.setStartTime(activity.getStartTime());
+                    existing.setEndTime(activity.getEndTime());
+                    existing.setDescription(activity.getDescription());
+                    existing.setCategory(activity.getCategory());
 
-                    toSave.add(existing);
+                    activitiesToSave.add(existing);
                 }
             }
         }
 
-        List<Activity> saved = activityRepository.saveAll(toSave);
+        List<Activity> savedActivities = activityRepository.saveAll(activitiesToSave);
 
-        return saved.stream()
-                .map(a -> ActivityDto.builder()
-                        .id(a.getId())
-                        .name(a.getName())
-                        .day(a.getDay())
-                        .startTime(a.getStartTime())
-                        .endTime(a.getEndTime())
+        return savedActivities.stream()
+                .map(activity -> ActivityDto.builder()
+                        .id(activity.getId())
+                        .name(activity.getName())
+                        .day(activity.getDay())
+                        .startTime(activity.getStartTime())
+                        .endTime(activity.getEndTime())
+                        .description(activity.getDescription())
+                        .category(activity.getCategory())
                         .build())
                 .toList();
     }

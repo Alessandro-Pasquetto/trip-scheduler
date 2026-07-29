@@ -185,6 +185,18 @@
             border-radius: 6px;
         }
 
+        .modal-content textarea, .modal-content select{
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .modal-content textarea{
+            resize: vertical;
+            min-height: 80px;
+        }
+
         .modal-content button{
             width: 100%;
             margin-top: 18px;
@@ -217,14 +229,29 @@
         }
 
         .deleteActivity {
-            position: absolute;
-            top: 4px;
-            right: 6px;
             cursor: pointer;
             font-weight: bold;
             font-size: 16px;
             color: #991b1b;
             user-select: none;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
+        .activity-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .activity-category {
+            font-size: 12px;
+            font-weight: bold;
         }
 
         .deleteActivity:hover {
@@ -273,16 +300,23 @@
             <h2 id="modalTitle"></h2>
 
             <label>Activity</label>
-
             <input type="text" id="activityName" placeholder="Museum">
 
-            <label>Start Time</label>
+            <label>Description</label>
+            <textarea id="activityDescription" placeholder="Description"></textarea>
 
-            <input type="time" id="startTime">
+            <label>Category</label>
+            <select id="activityCategory">
+                <option value="Activity" selected>Activity</option>
+                <option value="Transport">Transport</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label>Start Time</label>
+            <input type="time" id="activityStartTime">
 
             <label>End Time</label>
-
-            <input type="time" id="endTime">
+            <input type="time" id="activityEndTime">
 
             <button id="saveActivity">Save Activity</button>
         </div>
@@ -299,6 +333,8 @@
         let tripPlan = {
             id: /*[[${idPlan}]]*/ null,
             name: null,
+            description: null,
+            category: "Activity",
             startDate: null,
             endDate: null,
             activities: []
@@ -354,8 +390,10 @@
 
             document.getElementById("modalTitle").textContent = "Add Activity";
             document.getElementById("activityName").value = "";
-            document.getElementById("startTime").value = "";
-            document.getElementById("endTime").value = "";
+            document.getElementById("activityDescription").value = "";
+            document.getElementById("activityCategory").value = "Activity";
+            document.getElementById("activityStartTime").value = "";
+            document.getElementById("activityEndTime").value = "";
 
             modal.style.display = "flex";
         };
@@ -368,8 +406,10 @@
 
         document.getElementById("saveActivity").onclick = function(){
             const name = document.getElementById("activityName").value;
-            const startTime = document.getElementById("startTime").value;
-            const endTime = document.getElementById("endTime").value;
+            const startTime = document.getElementById("activityStartTime").value;
+            const endTime = document.getElementById("activityEndTime").value;
+            const description = document.getElementById("activityDescription").value;
+            const category = document.getElementById("activityCategory").value;
 
             if(name === ""){
                 alert("Insert an activity.");
@@ -378,6 +418,8 @@
 
             if (editingActivity) {
                 editingActivity.name = name;
+                editingActivity.description = description;
+                editingActivity.category = category;
                 editingActivity.startTime = startTime;
                 editingActivity.endTime = endTime;
 
@@ -387,7 +429,9 @@
                     day: getDateKey(days[currentIndex]),
                     name: name,
                     startTime: startTime,
-                    endTime: endTime
+                    endTime: endTime,
+                    description: description,
+                    category: category
                 });
             }
 
@@ -474,22 +518,54 @@
                         renderSchedule();
                     };
 
-                    div.appendChild(deleteBtn);
+                    const header = document.createElement("div");
+                    header.className = "activity-header";
 
                     const title = document.createElement("strong");
                     title.textContent = item.name;
 
-                    div.appendChild(title);
-                    div.appendChild(document.createElement("br"));
-                    div.append(item.startTime.substring(0, 5) + " - " + item.endTime.substring(0, 5));
+                    const headerRight = document.createElement("div");
+                    headerRight.className = "activity-header-right";
+
+                    const category = document.createElement("span");
+                    category.className = "activity-category";
+                    category.textContent = item.category;
+
+                    headerRight.appendChild(category);
+                    headerRight.appendChild(deleteBtn);
+
+                    header.appendChild(title);
+                    header.appendChild(headerRight);
+
+                    div.appendChild(header);
+
+                    if (item.description && duration >= 45) {
+                        const description = document.createElement("small");
+                        description.textContent = item.description;
+
+                        div.appendChild(description);
+                    }
+
+                    if (duration >= 30) {
+                        const time = document.createElement("div");
+
+                        time.textContent =
+                            item.startTime.substring(0, 5) +
+                            " - " +
+                            item.endTime.substring(0, 5);
+
+                        div.appendChild(time);
+                    }
 
                     div.onclick = function () {
                         editingActivity = item;
 
                         document.getElementById("modalTitle").textContent = "Edit Activity";
                         document.getElementById("activityName").value = item.name;
-                        document.getElementById("startTime").value = item.startTime;
-                        document.getElementById("endTime").value = item.endTime;
+                        document.getElementById("activityStartTime").value = item.startTime;
+                        document.getElementById("activityEndTime").value = item.endTime;
+                        document.getElementById("activityDescription").value = item.description;
+                        document.getElementById("activityCategory").value = item.category;
 
                         modal.style.display = "flex";
                     };

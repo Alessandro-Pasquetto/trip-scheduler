@@ -17,16 +17,24 @@ CREATE TABLE trip_plan (
            ON DELETE CASCADE
 );
 
+CREATE TYPE activity_category AS ENUM (
+    'Activity',
+    'Transport',
+    'Other',
+);
+
 CREATE TABLE activity (
     id SERIAL PRIMARY KEY,
     trip_plan_id INTEGER NOT NULL,
     day DATE NOT NULL,
     name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category activity_category NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
 
     CONSTRAINT fk_activity_trip_plan
-      FOREIGN KEY(trip_plan_id)
-          REFERENCES trip_plan(id)
-          ON DELETE CASCADE
+        FOREIGN KEY (trip_plan_id)
+        REFERENCES trip_plan(id)
+        ON DELETE CASCADE
 );
