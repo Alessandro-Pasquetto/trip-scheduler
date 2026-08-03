@@ -47,6 +47,21 @@
             background: #475569;
         }
 
+        #roleBadge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+
+            padding: 8px 14px;
+            border-radius: 20px;
+
+            background: #334155;
+            color: white;
+
+            font-size: 14px;
+            font-weight: bold;
+        }
+
         .container{
             width: 95%;
             max-width: 900px;
@@ -263,6 +278,7 @@
 
 <body>
     <button id="finishBtn">← Finish</button>
+    <div id="roleBadge"></div>
 
     <div class="container">
         <div id="calendarView" class="hidden">
@@ -307,9 +323,9 @@
 
             <label>Category</label>
             <select id="activityCategory">
-                <option value="Activity" selected>Activity</option>
-                <option value="Transport">Transport</option>
-                <option value="Other">Other</option>
+                <option value="ACTIVITY" selected>Activity</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="OTHER">Other</option>
             </select>
 
             <label>Start Time</label>
@@ -333,11 +349,10 @@
         let tripPlan = {
             id: /*[[${idPlan}]]*/ null,
             name: null,
-            description: null,
-            category: "Activity",
             startDate: null,
             endDate: null,
-            activities: []
+            activities: [],
+            tripRole: null
         };
 
         const calendarView = document.getElementById("calendarView");
@@ -349,8 +364,8 @@
 
         loadTrip();
 
-        document.getElementById("finishBtn").onclick = function(){
-            savePlan();
+        document.getElementById("finishBtn").onclick = async function(){
+            await savePlan();
 
             if(tripPlan.id != null)
                 window.location.href = "/home";
@@ -373,13 +388,13 @@
             }
         });
 
-        document.getElementById("confirmBtn").onclick = function(){
+        document.getElementById("confirmBtn").onclick = async function(){
             if(!tripPlan.startDate || !tripPlan.endDate){
                 alert("Select a date range.");
                 return;
             }
 
-            savePlan();
+            await savePlan();
 
             hideCalendarPlanView();
             showScheduleView();
@@ -391,7 +406,6 @@
             document.getElementById("modalTitle").textContent = "Add Activity";
             document.getElementById("activityName").value = "";
             document.getElementById("activityDescription").value = "";
-            document.getElementById("activityCategory").value = "Activity";
             document.getElementById("activityStartTime").value = "";
             document.getElementById("activityEndTime").value = "";
 
@@ -438,6 +452,32 @@
             modal.style.display = "none";
             renderSchedule();
         };
+
+        function showRole() {
+            const roleBadge = document.getElementById("roleBadge");
+
+            if (!tripPlan.tripRole) {
+                roleBadge.style.display = "none";
+                return;
+            }
+
+            roleBadge.textContent = tripPlan.tripRole;
+
+            switch (tripPlan.tripRole) {
+                case "OWNER":
+                    roleBadge.style.background = "#f59e0b";
+                    roleBadge.style.color = "black";
+                    break;
+
+                case "EDITOR":
+                    roleBadge.style.background = "#22c55e";
+                    break;
+
+                case "VIEWER":
+                    roleBadge.style.background = "#64748b";
+                    break;
+            }
+        }
 
         function renderBar(){
             dayBar.innerHTML = "";
@@ -633,6 +673,8 @@
                 if (saved)
                     tripPlan = JSON.parse(saved);
             }
+
+            showRole();
 
             if (!tripPlan.startDate)
                 showCalendarView();

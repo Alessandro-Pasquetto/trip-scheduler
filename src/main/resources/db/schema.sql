@@ -6,21 +6,39 @@ CREATE TABLE user_account (
 
 CREATE TABLE trip_plan (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     start_date DATE,
-    end_date DATE,
+    end_date DATE
+);
 
-    CONSTRAINT fk_trip_plan_user
-       FOREIGN KEY(user_id)
-           REFERENCES user_account(id)
-           ON DELETE CASCADE
+CREATE TYPE trip_role AS ENUM (
+    'owner',
+    'editor',
+    'viewer'
+);
+
+CREATE TABLE trip_plan_user (
+    trip_plan_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role trip_role NOT NULL,
+
+    PRIMARY KEY (trip_plan_id, user_id),
+
+    CONSTRAINT fk_tpu_trip_plan
+        FOREIGN KEY (trip_plan_id)
+        REFERENCES trip_plan(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_tpu_user
+        FOREIGN KEY (user_id)
+        REFERENCES user_account(id)
+        ON DELETE CASCADE
 );
 
 CREATE TYPE activity_category AS ENUM (
-    'Activity',
-    'Transport',
-    'Other',
+    'activity',
+    'transport',
+    'other'
 );
 
 CREATE TABLE activity (

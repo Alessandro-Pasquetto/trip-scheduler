@@ -9,8 +9,5 @@ import java.util.Optional;
 @Repository
 public interface TripPlanRepository extends JpaRepository<TripPlan, Long> {
 
-    List<TripPlan> findByUserId(Long userId);
-
-    Optional<TripPlan> findByIdAndUserId(Long id, Long userId);
 
 }

@@ -13,9 +13,9 @@ public class CustomUserDetails extends User {
 
     public CustomUserDetails(UserAccount user) {
         super(
-                user.getUsername(),
-                user.getPassword(),
-                List.of(new SimpleGrantedAuthority("USER"))
+            user.getUsername(),
+            user.getPassword(),
+            List.of(new SimpleGrantedAuthority("USER"))
         );
         this.id = user.getId();
     }

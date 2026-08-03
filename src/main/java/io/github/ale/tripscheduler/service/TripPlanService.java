@@ -2,13 +2,16 @@ package io.github.ale.tripscheduler.service;
 
 import io.github.ale.tripscheduler.dto.ActivityDto;
 import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
-import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
+import io.github.ale.tripscheduler.dto.response.UserTripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
 import io.github.ale.tripscheduler.entity.Activity;
 import io.github.ale.tripscheduler.entity.TripPlan;
+import io.github.ale.tripscheduler.entity.TripPlanUser;
 import io.github.ale.tripscheduler.entity.UserAccount;
+import io.github.ale.tripscheduler.enums.TripRole;
 import io.github.ale.tripscheduler.repository.ActivityRepository;
 import io.github.ale.tripscheduler.repository.TripPlanRepository;
+import io.github.ale.tripscheduler.repository.TripPlanUserRepository;
 import io.github.ale.tripscheduler.repository.UserAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,20 +24,23 @@ public class TripPlanService {
 
     private final UserAccountRepository userAccountRepository;
     private final TripPlanRepository tripPlanRepository;
+    private final TripPlanUserRepository tripPlanUserRepository;
     private final ActivityRepository activityRepository;
 
     public TripPlanService(UserAccountRepository userAccountRepository,
                            TripPlanRepository tripPlanRepository,
+                           TripPlanUserRepository tripPlanUserRepository,
                            ActivityRepository activityRepository) {
         this.userAccountRepository = userAccountRepository;
         this.tripPlanRepository = tripPlanRepository;
+        this.tripPlanUserRepository = tripPlanUserRepository;
         this.activityRepository = activityRepository;
     }
 
-    public List<TripPlanSummaryResponse> getPlans(Long userId) {
-        List<TripPlan> tripPlans = tripPlanRepository.findByUserId(userId);
-
-        return tripPlans.stream()
+    public List<TripPlanSummaryResponse> getUserPlans(Long userId) {
+        return tripPlanUserRepository.findByUserId(userId)
+                .stream()
+                .map(TripPlanUser::getTripPlan)
                 .map(tripPlan -> TripPlanSummaryResponse.builder()
                         .id(tripPlan.getId())
                         .name(tripPlan.getName())
@@ -44,12 +50,12 @@ public class TripPlanService {
                 .toList();
     }
 
-    public Long createPlan(Long userId){
+    @Transactional
+    public Long createPlan(Long userId) {
         UserAccount user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         TripPlan tripPlan = TripPlan.builder()
-                .user(user)
                 .name("New Plan")
                 .startDate(null)
                 .endDate(null)
@@ -57,17 +63,26 @@ public class TripPlanService {
 
         TripPlan savedPlan = tripPlanRepository.save(tripPlan);
 
+        TripPlanUser tripPlanUser = TripPlanUser.builder()
+                .tripPlan(savedPlan)
+                .user(user)
+                .role(TripRole.OWNER)
+                .build();
+
+        tripPlanUserRepository.save(tripPlanUser);
+
         return savedPlan.getId();
     }
 
-    public TripPlanDetailResponse getPlan(Long userId, Long planId) {
-
-        TripPlan tripPlan = tripPlanRepository.findByIdAndUserId(planId, userId)
+    public UserTripPlanDetailResponse getUserPlan(Long userId, Long planId) {
+        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(planId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        TripPlan tripPlan = membership.getTripPlan();
 
         List<Activity> activities = activityRepository.findByTripPlanId(planId);
 
-        TripPlanDetailResponse tripPlanDetailResponse = TripPlanDetailResponse.builder()
+        UserTripPlanDetailResponse userTripPlanDetailResponse = UserTripPlanDetailResponse.builder()
                 .id(tripPlan.getId())
                 .name(tripPlan.getName())
                 .startDate(tripPlan.getStartDate())
@@ -85,54 +100,44 @@ public class TripPlanService {
                                         .build())
                                 .toList()
                 )
+                .tripRole(membership.getRole())
                 .build();
 
-        return tripPlanDetailResponse;
+        return userTripPlanDetailResponse;
     }
 
-    public TripPlanDetailResponse updateTripPlan(Long userId, Long planId, UpdateTripPlanRequest tripPlan) {
-
-        TripPlan existingPlan = tripPlanRepository.findByIdAndUserId(planId, userId)
+    @Transactional
+    public UserTripPlanDetailResponse updateTripPlan(Long userId,
+                                                     Long planId,
+                                                     UpdateTripPlanRequest tripPlan) {
+        TripPlanUser membership = tripPlanUserRepository
+                .findByTripPlanIdAndUserId(planId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
-        TripPlan updatedPlan = TripPlan.builder()
+        if (membership.getRole() == TripRole.VIEWER) {
+            throw new RuntimeException("Permission denied");
+        }
+
+        TripPlan existingPlan = membership.getTripPlan();
+
+        existingPlan.setName(tripPlan.getName());
+        existingPlan.setStartDate(tripPlan.getStartDate());
+        existingPlan.setEndDate(tripPlan.getEndDate());
+
+        List<ActivityDto> updatedActivities = updatePlanActivities(existingPlan, tripPlan.getActivities());
+
+        return UserTripPlanDetailResponse.builder()
                 .id(existingPlan.getId())
-                .user(existingPlan.getUser())
-                .name(tripPlan.getName())
-                .startDate(tripPlan.getStartDate())
-                .endDate(tripPlan.getEndDate())
+                .name(existingPlan.getName())
+                .startDate(existingPlan.getStartDate())
+                .endDate(existingPlan.getEndDate())
+                .activities(updatedActivities)
+                .tripRole(membership.getRole())
                 .build();
-
-        TripPlan savedPlan = tripPlanRepository.save(updatedPlan);
-
-        List<ActivityDto> updatedPlanActivities = updatePlanActivities(savedPlan, tripPlan.getActivities());
-
-        TripPlanDetailResponse tripPlanDetailResponse = TripPlanDetailResponse.builder()
-                .id(savedPlan.getId())
-                .name(savedPlan.getName())
-                .startDate(savedPlan.getStartDate())
-                .endDate(savedPlan.getEndDate())
-                .activities(
-                        updatedPlanActivities.stream()
-                                .map(activity -> ActivityDto.builder()
-                                        .id(activity.getId())
-                                        .name(activity.getName())
-                                        .day(activity.getDay())
-                                        .startTime(activity.getStartTime())
-                                        .endTime(activity.getEndTime())
-                                        .description(activity.getDescription())
-                                        .category(activity.getCategory())
-                                        .build())
-                                .toList()
-                )
-                .build();
-
-        return tripPlanDetailResponse;
     }
 
-    private List<ActivityDto> updatePlanActivities(TripPlan savedPlan, List<ActivityDto> activities) {
-
-        List<Activity> existingActivities = activityRepository.findByTripPlanId(savedPlan.getId());
+    private List<ActivityDto> updatePlanActivities(TripPlan tripPlan, List<ActivityDto> activities) {
+        List<Activity> existingActivities = activityRepository.findByTripPlanId(tripPlan.getId());
 
         if (activities == null || activities.isEmpty()) {
             activityRepository.deleteAll(existingActivities);
@@ -160,7 +165,7 @@ public class TripPlanService {
         for (ActivityDto activity : activities) {
             if (activity.getId() == null) {
                 Activity newActivity = Activity.builder()
-                        .tripPlan(savedPlan)
+                        .tripPlan(tripPlan)
                         .name(activity.getName())
                         .day(activity.getDay())
                         .startTime(activity.getStartTime())
@@ -203,11 +208,12 @@ public class TripPlanService {
 
     @Transactional
     public void deleteTripPlan(Long userId, Long planId) {
-
-        TripPlan plan = tripPlanRepository.findByIdAndUserId(planId, userId)
+        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(planId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
-        activityRepository.deleteByTripPlanId(planId);
-        tripPlanRepository.delete(plan);
+        if (membership.getRole() != TripRole.OWNER)
+            throw new RuntimeException("User is not the owner of this TripPlan");
+
+        tripPlanRepository.deleteById(planId);
     }
 }

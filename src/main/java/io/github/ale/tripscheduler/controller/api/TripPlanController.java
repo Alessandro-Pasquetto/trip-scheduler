@@ -1,7 +1,7 @@
 package io.github.ale.tripscheduler.controller.api;
 
 import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
-import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
+import io.github.ale.tripscheduler.dto.response.UserTripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
 import io.github.ale.tripscheduler.security.CustomUserDetails;
 import io.github.ale.tripscheduler.service.TripPlanService;
@@ -26,7 +26,7 @@ public class TripPlanController {
     public ResponseEntity<List<TripPlanSummaryResponse>> getPlans(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        return ResponseEntity.ok(tripPlanService.getPlans(userDetails.getId()));
+        return ResponseEntity.ok(tripPlanService.getUserPlans(userDetails.getId()));
     }
 
     @PostMapping
@@ -37,19 +37,19 @@ public class TripPlanController {
     }
 
     @GetMapping("/{planId}")
-    public ResponseEntity<TripPlanDetailResponse> getPlan(Authentication authentication, @PathVariable Long planId) {
+    public ResponseEntity<UserTripPlanDetailResponse> getPlan(Authentication authentication, @PathVariable Long planId) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        return ResponseEntity.ok(tripPlanService.getPlan(userDetails.getId(), planId));
+        return ResponseEntity.ok(tripPlanService.getUserPlan(userDetails.getId(), planId));
     }
 
     @PutMapping("/{planId}")
-    public ResponseEntity<TripPlanDetailResponse> updateTripPlan(Authentication authentication,
-                                                                 @PathVariable Long planId,
-                                                                 @RequestBody UpdateTripPlanRequest request) {
+    public ResponseEntity<UserTripPlanDetailResponse> updateTripPlan(Authentication authentication,
+                                                                     @PathVariable Long planId,
+                                                                     @RequestBody UpdateTripPlanRequest request) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        TripPlanDetailResponse response = tripPlanService.updateTripPlan(userDetails.getId(), planId, request);
+        UserTripPlanDetailResponse response = tripPlanService.updateTripPlan(userDetails.getId(), planId, request);
 
         return ResponseEntity.ok(response);
     }
