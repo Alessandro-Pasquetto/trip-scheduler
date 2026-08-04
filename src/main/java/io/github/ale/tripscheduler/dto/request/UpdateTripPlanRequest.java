@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.util.List;
 
-@Getter @Setter
+@Getter
 public class UpdateTripPlanRequest {
     private String name;
     private LocalDate startDate;

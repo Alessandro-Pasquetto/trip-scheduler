@@ -12,4 +12,5 @@ public interface TripPlanUserRepository extends JpaRepository<TripPlanUser, Long
 
     List<TripPlanUser> findByUserId(Long userId);
     Optional<TripPlanUser> findByTripPlanIdAndUserId(Long tripPlanId, Long userId);
+    void deleteByTripPlanIdAndUserId(Long planId, Long userId);
 }

@@ -8,7 +8,8 @@ CREATE TABLE trip_plan (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     start_date DATE,
-    end_date DATE
+    end_date DATE,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TYPE trip_role AS ENUM (

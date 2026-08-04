@@ -6,7 +6,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
 
-@Getter @Setter
+@Getter
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class UserTripPlanDetailResponse {
     private Long id;

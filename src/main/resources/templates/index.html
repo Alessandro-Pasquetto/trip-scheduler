@@ -20,17 +20,23 @@
             color: white;
         }
 
-        .navbar .logo {
+        .logo {
             font-weight: bold;
             font-size: 18px;
         }
 
-        .navbar a {
+        .login-btn {
             color: white;
             text-decoration: none;
             background: #4a90e2;
             padding: 8px 14px;
             border-radius: 6px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .login-btn:hover {
+            background: #357abd;
+            transform: translateY(-2px);
         }
 
         .hero {
@@ -57,7 +63,7 @@
             margin-top: 40px;
         }
 
-        .cta a {
+        .guest-btn {
             display: inline-block;
             padding: 15px 30px;
             background: #28a745;
@@ -65,30 +71,35 @@
             text-decoration: none;
             border-radius: 8px;
             font-size: 18px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
 
-        .cta a:hover {
+        .guest-btn:hover {
             background: #218838;
+            transform: translateY(-2px);
         }
     </style>
 </head>
 
 <body>
-    <div class="navbar">
-        <div class="logo">Trip Scheduler</div>
-        <a href="/login">Login</a>
+
+<div class="navbar">
+    <div class="logo">Trip Scheduler</div>
+
+    <a href="/login" class="login-btn">Login</a>
+</div>
+
+<div class="hero">
+    <img src="https://cdn-icons-png.flaticon.com/512/201/201623.png" alt="Travel">
+
+    <h1>Trip Scheduler</h1>
+
+    <p>Plan your journey hour by hour, including transport, activities, and timing.</p>
+
+    <div class="cta">
+        <a href="/plan-editor" class="guest-btn">Continue as Guest</a>
     </div>
+</div>
 
-    <div class="hero">
-        <img src="https://cdn-icons-png.flaticon.com/512/201/201623.png" alt="travel">
-
-        <h1>Trip Scheduler</h1>
-
-        <p>Plan your journey hour by hour, including transport, activities, and timing</p>
-
-        <div class="cta">
-            <a href="/plan-editor">Continue as guest</a>
-        </div>
-    </div>
 </body>
 </html>

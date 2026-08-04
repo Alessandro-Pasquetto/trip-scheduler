@@ -17,8 +17,7 @@ public class TripPlanController {
 
     private final TripPlanService tripPlanService;
 
-    public TripPlanController(TripPlanService tripPlanService)
-    {
+    public TripPlanController(TripPlanService tripPlanService) {
         this.tripPlanService = tripPlanService;
     }
 

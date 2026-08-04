@@ -185,7 +185,7 @@
 
                     <h3 class="title">${plan.name || "Untitled Plan"}</h3>
 
-                    <div class="meta">ID: ${plan.id}</div>
+                    <div class="meta">Last update: ${formatDate(plan.updatedAt)}</div>
                 `;
 
                 card.addEventListener("click", () => {
@@ -229,6 +229,13 @@
             plansContainer.innerHTML =
                 `<div class="empty">${error.message}</div>`;
         }
+    }
+
+    function formatDate(dateTime) {
+        if (!dateTime)
+            return "Unknown";
+
+        return new Date(dateTime).toLocaleString("it-IT");
     }
 
     newPlanBtn.addEventListener("click", createPlan);

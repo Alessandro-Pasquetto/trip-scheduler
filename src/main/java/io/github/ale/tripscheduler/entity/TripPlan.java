@@ -2,9 +2,9 @@ package io.github.ale.tripscheduler.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trip_plan")
@@ -21,4 +21,8 @@ public class TripPlan {
     private LocalDate startDate;
 
     private LocalDate endDate;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 }
