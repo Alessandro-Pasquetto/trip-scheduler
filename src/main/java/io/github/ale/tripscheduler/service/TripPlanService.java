@@ -1,8 +1,9 @@
 package io.github.ale.tripscheduler.service;
 
 import io.github.ale.tripscheduler.dto.ActivityDto;
+import io.github.ale.tripscheduler.dto.CollaboratorDto;
 import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
-import io.github.ale.tripscheduler.dto.response.UserTripPlanDetailResponse;
+import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
 import io.github.ale.tripscheduler.entity.Activity;
 import io.github.ale.tripscheduler.entity.TripPlan;
@@ -76,17 +77,20 @@ public class TripPlanService {
         return savedPlan.getId();
     }
 
-    public UserTripPlanDetailResponse getUserPlan(Long userId, Long planId) {
-        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(planId, userId)
+    public TripPlanDetailResponse getUserPlan(Long userId, Long tripPlanId) {
+        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
         TripPlan tripPlan = membership.getTripPlan();
 
-        List<Activity> activities = activityRepository.findByTripPlanId(planId);
+        List<Activity> activities = activityRepository.findByTripPlanId(tripPlanId);
 
-        UserTripPlanDetailResponse userTripPlanDetailResponse = UserTripPlanDetailResponse.builder()
+        List<TripPlanUser> collaborators = tripPlanUserRepository.findByTripPlanId(tripPlanId);
+
+        TripPlanDetailResponse tripPlanDetailResponse = TripPlanDetailResponse.builder()
                 .id(tripPlan.getId())
                 .name(tripPlan.getName())
+                .tripRole(membership.getRole())
                 .startDate(tripPlan.getStartDate())
                 .endDate(tripPlan.getEndDate())
                 .activities(
@@ -102,18 +106,24 @@ public class TripPlanService {
                                         .build())
                                 .toList()
                 )
-                .tripRole(membership.getRole())
+                .collaborators(
+                        collaborators.stream()
+                                .map(member -> CollaboratorDto.builder()
+                                        .id(member.getUser().getId())
+                                        .username(member.getUser().getUsername())
+                                        .tripRole(member.getRole())
+                                        .build())
+                                .toList()
+                )
                 .build();
 
-        return userTripPlanDetailResponse;
+        return tripPlanDetailResponse;
     }
 
     @Transactional
-    public UserTripPlanDetailResponse updateTripPlan(Long userId,
-                                                     Long planId,
-                                                     UpdateTripPlanRequest tripPlan) {
+    public void updateTripPlan(Long userId, Long tripPlanId, UpdateTripPlanRequest tripPlan) {
         TripPlanUser membership = tripPlanUserRepository
-                .findByTripPlanIdAndUserId(planId, userId)
+                .findByTripPlanIdAndUserId(tripPlanId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
         if (membership.getRole() == TripRole.VIEWER)
@@ -125,19 +135,10 @@ public class TripPlanService {
         existingPlan.setStartDate(tripPlan.getStartDate());
         existingPlan.setEndDate(tripPlan.getEndDate());
 
-        List<ActivityDto> updatedActivities = updatePlanActivities(existingPlan, tripPlan.getActivities());
-
-        return UserTripPlanDetailResponse.builder()
-                .id(existingPlan.getId())
-                .name(existingPlan.getName())
-                .startDate(existingPlan.getStartDate())
-                .endDate(existingPlan.getEndDate())
-                .activities(updatedActivities)
-                .tripRole(membership.getRole())
-                .build();
+        updatePlanActivities(existingPlan, tripPlan.getActivities());
     }
 
-    private List<ActivityDto> updatePlanActivities(TripPlan tripPlan, List<ActivityDto> activities) {
+    private void updatePlanActivities(TripPlan tripPlan, List<ActivityDto> activities) {
         List<Activity> existingActivities = activityRepository.findByTripPlanId(tripPlan.getId());
 
         if (activities == null || activities.isEmpty()) {
@@ -145,7 +146,7 @@ public class TripPlanService {
                 activityRepository.deleteAll(existingActivities);
                 tripPlan.setUpdatedAt(LocalDateTime.now());
             }
-            return Collections.emptyList();
+            return;
         }
 
         Map<Long, Activity> existingActivitiesMap = existingActivities.stream()
@@ -215,34 +216,48 @@ public class TripPlanService {
             }
         }
 
-        List<Activity> savedActivities = activitiesToSave.isEmpty()
-                ? Collections.emptyList()
-                : activityRepository.saveAll(activitiesToSave);
+        if (!activitiesToSave.isEmpty())
+            activityRepository.saveAll(activitiesToSave);
 
         if (modified)
             tripPlan.setUpdatedAt(LocalDateTime.now());
-
-        return savedActivities.stream()
-                .map(activity -> ActivityDto.builder()
-                        .id(activity.getId())
-                        .name(activity.getName())
-                        .day(activity.getDay())
-                        .startTime(activity.getStartTime())
-                        .endTime(activity.getEndTime())
-                        .description(activity.getDescription())
-                        .category(activity.getCategory())
-                        .build())
-                .toList();
     }
 
     @Transactional
-    public void deleteTripPlan(Long userId, Long planId) {
-        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(planId, userId)
+    public void deleteTripPlan(Long userId, Long tripPlanId) {
+        TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
         if (membership.getRole() == TripRole.OWNER)
-            tripPlanRepository.deleteById(planId);
+            tripPlanRepository.deleteById(tripPlanId);
         else
-            tripPlanUserRepository.deleteByTripPlanIdAndUserId(planId, userId);
+            tripPlanUserRepository.deleteByTripPlanIdAndUserId(tripPlanId, userId);
+    }
+
+    // todo: temporary until invites are implemented
+    @Transactional
+    public void addCollaborator(Long userId, Long tripPlanId, String collaboratorUsername) {
+        TripPlanUser ownerMembership = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        if (ownerMembership.getRole() != TripRole.OWNER)
+            throw new RuntimeException("Permission denied");
+
+        UserAccount collaborator = userAccountRepository.findByUsername(collaboratorUsername)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean alreadyExists = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, collaborator.getId())
+                .isPresent();
+
+        if (alreadyExists)
+            throw new RuntimeException("User already collaborator");
+
+        TripPlanUser newCollaborator = TripPlanUser.builder()
+                .tripPlan(ownerMembership.getTripPlan())
+                .user(collaborator)
+                .role(TripRole.EDITOR)
+                .build();
+
+        tripPlanUserRepository.save(newCollaborator);
     }
 }

@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface TripPlanUserRepository extends JpaRepository<TripPlanUser, Long> {
 
     List<TripPlanUser> findByUserId(Long userId);
+    List<TripPlanUser> findByTripPlanId(Long tripPlanId);
     Optional<TripPlanUser> findByTripPlanIdAndUserId(Long tripPlanId, Long userId);
-    void deleteByTripPlanIdAndUserId(Long planId, Long userId);
+    void deleteByTripPlanIdAndUserId(Long tripPlanId, Long userId);
 }

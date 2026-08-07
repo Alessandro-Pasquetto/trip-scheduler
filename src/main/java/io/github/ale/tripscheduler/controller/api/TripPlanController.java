@@ -1,7 +1,8 @@
 package io.github.ale.tripscheduler.controller.api;
 
+import io.github.ale.tripscheduler.dto.request.CollaborationRequestDto;
 import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
-import io.github.ale.tripscheduler.dto.response.UserTripPlanDetailResponse;
+import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
 import io.github.ale.tripscheduler.security.CustomUserDetails;
 import io.github.ale.tripscheduler.service.TripPlanService;
@@ -35,31 +36,44 @@ public class TripPlanController {
         return ResponseEntity.ok(tripPlanService.createPlan(userDetails.getId()));
     }
 
-    @GetMapping("/{planId}")
-    public ResponseEntity<UserTripPlanDetailResponse> getPlan(Authentication authentication, @PathVariable Long planId) {
+    @GetMapping("/{tripPlanId}")
+    public ResponseEntity<TripPlanDetailResponse> getPlan(Authentication authentication,
+                                                          @PathVariable Long tripPlanId) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        return ResponseEntity.ok(tripPlanService.getUserPlan(userDetails.getId(), planId));
+        return ResponseEntity.ok(tripPlanService.getUserPlan(userDetails.getId(), tripPlanId));
     }
 
-    @PutMapping("/{planId}")
-    public ResponseEntity<UserTripPlanDetailResponse> updateTripPlan(Authentication authentication,
-                                                                     @PathVariable Long planId,
-                                                                     @RequestBody UpdateTripPlanRequest request) {
+    @PutMapping("/{tripPlanId}")
+    public ResponseEntity<Void> updateTripPlan(Authentication authentication,
+                                               @PathVariable Long tripPlanId,
+                                               @RequestBody UpdateTripPlanRequest request) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        UserTripPlanDetailResponse response = tripPlanService.updateTripPlan(userDetails.getId(), planId, request);
-
-        return ResponseEntity.ok(response);
-    }
-
-    @DeleteMapping("/{planId}")
-    public ResponseEntity<Void> deleteTripPlan(Authentication authentication,
-                                               @PathVariable Long planId) {
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        tripPlanService.deleteTripPlan(userDetails.getId(), planId);
+        tripPlanService.updateTripPlan(userDetails.getId(), tripPlanId, request);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{tripPlanId}")
+    public ResponseEntity<Void> deleteTripPlan(Authentication authentication,
+                                               @PathVariable Long tripPlanId) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        tripPlanService.deleteTripPlan(userDetails.getId(), tripPlanId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{tripPlanId}/collaboration-requests")
+    public ResponseEntity<Void> sendCollaborationRequest(Authentication authentication,
+                                                         @PathVariable Long tripPlanId,
+                                                         @RequestBody CollaborationRequestDto request) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        // todo: temporary until invites are implemented
+        tripPlanService.addCollaborator(userDetails.getId(), tripPlanId, request.getUsername());
+
+        return ResponseEntity.ok().build();
     }
 }
