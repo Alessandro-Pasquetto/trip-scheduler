@@ -430,11 +430,14 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
     <script th:inline="javascript">
         let days = [];
         let currentIndex = 0;
         let editingActivity = null;
+        let stompClient = null;
 
         // todo: add TypeScript tests
         let tripPlan = {
@@ -455,7 +458,7 @@
         const activityModal = document.getElementById("activityModal");
         const collaboratorModal = document.getElementById("collaboratorModal");
 
-        loadData();
+        loadTripPlan();
 
         flatpickr("#calendar", {
             inline: true,
@@ -473,7 +476,7 @@
         });
 
         document.getElementById("finishBtn").onclick = async function() {
-            await savePlan();
+            await saveTripPlan();
 
             if(tripPlan.id != null)
                 window.location.href = "/home";
@@ -487,7 +490,7 @@
                 return;
             }
 
-            await savePlan();
+            await saveTripPlan();
 
             hideCalendarPlanView();
             showScheduleView();
@@ -505,7 +508,7 @@
             activityModal.style.display = "flex";
         };
 
-        document.getElementById("saveActivity").onclick = function() {
+        document.getElementById("saveActivity").onclick = async function() {
             const name = document.getElementById("activityName").value;
             const startTime = document.getElementById("activityStartTime").value;
             const endTime = document.getElementById("activityEndTime").value;
@@ -538,6 +541,8 @@
 
             activityModal.style.display = "none";
             renderSchedule();
+
+            await saveTripPlan();
         };
 
         document.getElementById("addCollaboratorBtn").onclick = function() {
@@ -725,7 +730,7 @@
                     deleteBtn.className = "deleteActivity";
                     deleteBtn.textContent = "✕";
 
-                    deleteBtn.onclick = function(e) {
+                    deleteBtn.onclick = async function(e) {
                         e.stopPropagation();
 
                         tripPlan.activities = tripPlan.activities.filter(activity =>
@@ -736,6 +741,7 @@
                         );
 
                         renderSchedule();
+                        await saveTripPlan();
                     };
 
                     const header = document.createElement("div");
@@ -810,9 +816,11 @@
             scheduleView.classList.remove("hidden");
         }
 
-        async function loadData() {
-            if (tripPlan.id != null)
-                await loadTripFromDB();
+        async function loadTripPlan() {
+            if (tripPlan.id != null){
+                await loadTripPlanFromDB();
+                connectSocket();
+            }
             else {
                 const saved = localStorage.getItem("tripPlan");
 
@@ -829,7 +837,7 @@
                 showScheduleView();
         }
 
-        async function loadTripFromDB() {
+        async function loadTripPlanFromDB() {
             try {
                 const response = await fetch(`/api/trip-plans/${tripPlan.id}`);
 
@@ -843,14 +851,14 @@
             }
         }
 
-        async function savePlan() {
+        async function saveTripPlan() {
             if (tripPlan.id != null)
-                await saveTripToDB();
+                await saveTripPlanToDB();
             else
                 localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
         }
 
-        async function saveTripToDB() {
+        async function saveTripPlanToDB() {
             try {
                 const response = await fetch(`/api/trip-plans/${tripPlan.id}`, {
                     method: "PUT",
@@ -865,6 +873,37 @@
             } catch (err) {
                 console.error("Failed to save trip plan", err);
             }
+        }
+
+        function connectSocket() {
+            const socket = new SockJS("/ws");
+
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function() {
+                console.log("WebSocket connected");
+
+                stompClient.subscribe(`/topic/trip-plan/${tripPlan.id}`, async function(message) {
+                        const event = JSON.parse(message.body);
+
+                        if(event.type === "UPDATE")
+                            await refreshTripPlan();
+                    }
+                );
+            });
+        }
+
+        async function refreshTripPlan() {
+            await loadTripPlanFromDB();
+
+            days = getDatesBetween(
+                tripPlan.startDate,
+                tripPlan.endDate
+            );
+
+            renderBar();
+            renderSchedule();
+            renderCollaborators();
         }
 
         function formatDate(date) {

@@ -5,6 +5,7 @@ import io.github.ale.tripscheduler.dto.CollaboratorDto;
 import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
 import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
+import io.github.ale.tripscheduler.dto.socket.TripPlanEvent;
 import io.github.ale.tripscheduler.entity.Activity;
 import io.github.ale.tripscheduler.entity.TripPlan;
 import io.github.ale.tripscheduler.entity.TripPlanUser;
@@ -14,6 +15,7 @@ import io.github.ale.tripscheduler.repository.ActivityRepository;
 import io.github.ale.tripscheduler.repository.TripPlanRepository;
 import io.github.ale.tripscheduler.repository.TripPlanUserRepository;
 import io.github.ale.tripscheduler.repository.UserAccountRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,15 +30,18 @@ public class TripPlanService {
     private final TripPlanRepository tripPlanRepository;
     private final TripPlanUserRepository tripPlanUserRepository;
     private final ActivityRepository activityRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public TripPlanService(UserAccountRepository userAccountRepository,
                            TripPlanRepository tripPlanRepository,
                            TripPlanUserRepository tripPlanUserRepository,
-                           ActivityRepository activityRepository) {
+                           ActivityRepository activityRepository,
+                           SimpMessagingTemplate messagingTemplate) {
         this.userAccountRepository = userAccountRepository;
         this.tripPlanRepository = tripPlanRepository;
         this.tripPlanUserRepository = tripPlanUserRepository;
         this.activityRepository = activityRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     public List<TripPlanSummaryResponse> getUserPlans(Long userId) {
@@ -136,6 +141,11 @@ public class TripPlanService {
         existingPlan.setEndDate(tripPlan.getEndDate());
 
         updatePlanActivities(existingPlan, tripPlan.getActivities());
+
+        messagingTemplate.convertAndSend(
+                "/topic/trip-plan/" + tripPlanId,
+                new TripPlanEvent("UPDATE")
+        );
     }
 
     private void updatePlanActivities(TripPlan tripPlan, List<ActivityDto> activities) {
@@ -259,5 +269,10 @@ public class TripPlanService {
                 .build();
 
         tripPlanUserRepository.save(newCollaborator);
+
+        messagingTemplate.convertAndSend(
+                "/topic/trip-plan/" + tripPlanId,
+                new TripPlanEvent("UPDATE")
+        );
     }
 }
