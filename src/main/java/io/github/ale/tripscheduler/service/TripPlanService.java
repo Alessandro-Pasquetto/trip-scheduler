@@ -270,9 +270,10 @@ public class TripPlanService {
 
         tripPlanUserRepository.save(newCollaborator);
 
-        messagingTemplate.convertAndSend(
-                "/topic/trip-plan/" + tripPlanId,
-                new TripPlanEvent("UPDATE")
+        messagingTemplate.convertAndSendToUser(
+                collaboratorUsername,
+                "/queue/notifications",
+                new TripPlanEvent("PLAN_ADDED")
         );
     }
 }

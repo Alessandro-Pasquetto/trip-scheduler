@@ -151,13 +151,31 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="/js/websocket.js"></script>
+
 <script>
     const plansContainer = document.getElementById("plansContainer");
     const newPlanBtn = document.getElementById("newPlanBtn");
 
-    loadPlans();
+    initHome();
 
-    async function loadPlans() {
+    async function initHome() {
+        const stompClient = await connectWebSocket();
+
+        stompClient.subscribe('/user/queue/notifications', message => {
+            const event = JSON.parse(message.body);
+
+            if (event.type === 'PLAN_ADDED') {
+                loadTripPlans();
+            }
+        });
+
+        await loadTripPlans();
+    }
+
+    async function loadTripPlans() {
         plansContainer.innerHTML = '<div class="loading">Loading plans...</div>';
 
         try {
