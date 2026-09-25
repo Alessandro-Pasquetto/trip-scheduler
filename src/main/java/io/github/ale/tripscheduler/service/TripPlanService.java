@@ -238,8 +238,19 @@ public class TripPlanService {
         TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
 
-        if (membership.getRole() == TripRole.OWNER)
+        if (membership.getRole() == TripRole.OWNER) {
+            List<TripPlanUser> collaborators = tripPlanUserRepository.findByTripPlanId(tripPlanId);
+
+            for (TripPlanUser collaborator : collaborators) {
+                messagingTemplate.convertAndSendToUser(
+                        collaborator.getUser().getUsername(),
+                        "/queue/notifications",
+                        new TripPlanEvent("PLAN_DELETED")
+                );
+            }
+
             tripPlanRepository.deleteById(tripPlanId);
+        }
         else
             tripPlanUserRepository.deleteByTripPlanIdAndUserId(tripPlanId, userId);
     }
@@ -270,9 +281,10 @@ public class TripPlanService {
 
         tripPlanUserRepository.save(newCollaborator);
 
-        messagingTemplate.convertAndSend(
-                "/topic/trip-plan/" + tripPlanId,
-                new TripPlanEvent("UPDATE")
+        messagingTemplate.convertAndSendToUser(
+                collaboratorUsername,
+                "/queue/notifications",
+                new TripPlanEvent("PLAN_ADDED")
         );
     }
 }
