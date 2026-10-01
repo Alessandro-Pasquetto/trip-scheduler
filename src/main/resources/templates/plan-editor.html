@@ -164,7 +164,7 @@
             display:  none;
         }
 
-        #confirmBtn{
+        #datesConfirmBtn{
             margin-top: 20px;
             padding: 12px 20px;
             border: none;
@@ -175,7 +175,7 @@
             cursor: pointer;
         }
 
-        #confirmBtn:hover{
+        #datesConfirmBtn:hover{
             background: #fb923c;
         }
 
@@ -365,7 +365,7 @@
             <h1>Select your vacation dates</h1>
             <hr>
             <div id="calendar"></div>
-            <button id="confirmBtn">Confirm</button>
+            <button id="datesConfirmBtn">Confirm</button>
         </div>
 
         <div class="schedule-view hidden">
@@ -448,7 +448,7 @@
 
         let days = [];
         let currentIndex = 0;
-        let editingActivity = null;
+        let editingActivityId = null;
 
         // todo: add TypeScript tests
         let tripPlan = {
@@ -457,11 +457,32 @@
             tripRole: null,
             startDate: null,
             endDate: null,
-            activities: [],
+            activities: new Map(),
             collaborators: []
         };
 
         initEditor();
+
+        async function initEditor() {
+            if (isLoggedIn) {
+                const stompClient = await connectWebSocket();
+
+                stompClient.subscribe(`/topic/trip-plan/${tripPlan.id}`, async function(message) {
+                    const event = JSON.parse(message.body);
+
+                    if (event.type === "ACTIVITY_ADDED" || event.type === "ACTIVITY_UPDATED") {
+                        const activity = event.data;
+                        setTripPlanActivityAndRender(activity);
+                    }
+                    else if (event.type === "ACTIVITY_DELETED") {
+                        const activityId = event.data;
+                        removeTripPlanActivityAndRender(activityId);
+                    }
+                });
+            }
+
+            await loadTripPlan();
+        }
 
         flatpickr("#calendar", {
             inline: true,
@@ -479,29 +500,48 @@
         });
 
         document.getElementById("finishBtn").onclick = async function() {
-            await saveTripPlan();
-
             if(isLoggedIn)
                 window.location.href = "/home";
-            else
+            else{
+                localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
                 window.history.back();
+            }
         };
 
-        document.getElementById("confirmBtn").onclick = async function() {
+        document.getElementById("datesConfirmBtn").onclick = async function() {
             if (!tripPlan.startDate || !tripPlan.endDate) {
                 alert("Select a date range.");
                 return;
             }
 
-            await saveTripPlan();
+            await addTripPlanDatesToDB();
 
             hideCalendarPlanView();
             showScheduleView();
         };
 
-        document.getElementById("addActivity").onclick = function() {
-            editingActivity = null;
+        async function addTripPlanDatesToDB() {
+            try {
+                const response = await fetch(`/api/trip-plans/${tripPlan.id}/dates`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        startDate: tripPlan.startDate,
+                        endDate: tripPlan.endDate
+                    })
+                });
 
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+            } catch (err) {
+                console.error("Failed to save trip plan dates", err);
+            }
+        }
+
+        document.getElementById("addActivity").onclick = function() {
             document.getElementById("modalTitle").textContent = "Add Activity";
             document.getElementById("activityName").value = "";
             document.getElementById("activityDescription").value = "";
@@ -523,30 +563,101 @@
                 return;
             }
 
-            if (editingActivity) {
-                editingActivity.name = name;
-                editingActivity.description = description;
-                editingActivity.category = category;
-                editingActivity.startTime = startTime;
-                editingActivity.endTime = endTime;
-
-                editingActivity = null;
-            } else {
-                tripPlan.activities.push({
-                    day: getDateKey(days[currentIndex]),
-                    name: name,
-                    startTime: startTime,
-                    endTime: endTime,
-                    description: description,
-                    category: category
-                });
-            }
-
             activityModal.style.display = "none";
-            renderSchedule();
 
-            await saveTripPlan();
+            const activity = {
+                id: editingActivityId,
+                day: getDateKey(days[currentIndex]),
+                name: name,
+                startTime: startTime,
+                endTime: endTime,
+                description: description,
+                category: category
+            };
+
+            if(editingActivityId === null)
+                await addTripPlanActivityToDB(activity);
+            else
+                await updateTripPlanActivityInDB(activity);
+
+            editingActivityId = null;
         };
+
+        async function addTripPlanActivityToDB(activity) {
+            try {
+                const response = await fetch(
+                    `/api/trip-plans/${tripPlan.id}/activities`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(activity)
+                    }
+                );
+
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+                activity.id = await response.json();
+                setTripPlanActivityAndRender(activity); // No need, it does it anyway when receiving the WebSocket message
+
+            } catch (err) {
+                console.error("Failed to add activity", err);
+            }
+        }
+
+        async function updateTripPlanActivityInDB(activity) {
+            try {
+                const response = await fetch(
+                    `/api/trip-plans/${tripPlan.id}/activities/${activity.id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(activity)
+                    }
+                );
+
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+                setTripPlanActivityAndRender(activity); // No need, it does it anyway when receiving the WebSocket message
+
+            } catch (err) {
+                console.error("Failed to update activity", err);
+            }
+        }
+
+        async function deleteTripPlanActivityFromDB(activityId) {
+            try {
+                const response = await fetch(
+                    `/api/trip-plans/${tripPlan.id}/activities/${activityId}`,
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                if (!response.ok)
+                    throw new Error("HTTP " + response.status);
+
+                removeTripPlanActivityAndRender(activityId); // No need, it does it anyway when receiving the WebSocket message
+
+            } catch (err) {
+                console.error("Failed to delete activity", err);
+            }
+        }
+
+        function setTripPlanActivityAndRender(activity) {
+            tripPlan.activities.set(activity.id, activity);
+            renderSchedule();
+        }
+
+        function removeTripPlanActivityAndRender(activityId) {
+            tripPlan.activities.delete(activityId);
+            renderSchedule();
+        }
 
         document.getElementById("addCollaboratorBtn").onclick = function() {
             document.getElementById("collaboratorUsername").value = "";
@@ -592,22 +703,6 @@
                 collaboratorModal.style.display = "none";
             }
         };
-
-        async function initEditor() {
-            if (isLoggedIn) {
-                const stompClient = await connectWebSocket();
-
-                stompClient.subscribe(`/topic/trip-plan/${tripPlan.id}`, async function(message) {
-                    const event = JSON.parse(message.body);
-
-                    if (event.type === "UPDATE") {
-                        await refreshTripPlan();
-                    }
-                });
-            }
-
-            await loadTripPlan();
-        }
 
         function showRole() {
             const roleBadge = document.getElementById("roleBadge");
@@ -723,11 +818,10 @@
                 row.appendChild(activity);
                 scheduleBody.appendChild(row);
 
-                const found = tripPlan.activities.filter(x => {
-                    return x.day === today && parseInt(x.startTime.split(":")[0]) === hour;
-                });
+                for (const item of tripPlan.activities.values()) {
+                    if (item.day !== today || parseInt(item.startTime.split(":")[0]) !== hour)
+                        continue;
 
-                found.forEach(item=>{
                     const div = document.createElement("div");
                     div.className = "activity";
 
@@ -752,15 +846,7 @@
                     deleteBtn.onclick = async function(e) {
                         e.stopPropagation();
 
-                        tripPlan.activities = tripPlan.activities.filter(activity =>
-                            !(activity.day === item.day &&
-                                activity.name === item.name &&
-                                activity.startTime === item.startTime &&
-                                activity.endTime === item.endTime)
-                        );
-
-                        renderSchedule();
-                        await saveTripPlan();
+                        await deleteTripPlanActivityFromDB(item.id);
                     };
 
                     const header = document.createElement("div");
@@ -803,7 +889,7 @@
                     }
 
                     div.onclick = function () {
-                        editingActivity = item;
+                        editingActivityId = item.id;
 
                         document.getElementById("modalTitle").textContent = "Edit Activity";
                         document.getElementById("activityName").value = item.name;
@@ -816,7 +902,7 @@
                     };
 
                     activity.appendChild(div);
-                });
+                }
             }
         }
 
@@ -842,8 +928,21 @@
             else {
                 const saved = localStorage.getItem("tripPlan");
 
-                if (saved)
-                    tripPlan = JSON.parse(saved);
+                if (saved) {
+                    const data = JSON.parse(saved);
+
+                    tripPlan = {
+                        id: data.id,
+                        name: data.name,
+                        tripRole: data.tripRole,
+                        startDate: data.startDate,
+                        endDate: data.endDate,
+                        activities: new Map(
+                            data.activities.map(activity => [activity.id, activity])
+                        ),
+                        collaborators: data.collaborators
+                    };
+                }
             }
 
             showRole();
@@ -862,48 +961,26 @@
                 if (!response.ok)
                     throw new Error("HTTP " + response.status);
 
-                tripPlan = await response.json();
+                const data = await response.json();
+
+                tripPlan = {
+                    id: data.id,
+                    name: data.name,
+                    tripRole: data.tripRole,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+
+                    activities: new Map(
+                        data.activities.map(activity => [activity.id, activity])
+                    ),
+
+                    collaborators: data.collaborators
+                };
+
             } catch (err) {
                 console.error("Failed to load trip plan from DB", err);
                 window.location.href = "/home";
             }
-        }
-
-        async function saveTripPlan() {
-            if (isLoggedIn)
-                await saveTripPlanToDB();
-            else
-                localStorage.setItem("tripPlan", JSON.stringify(tripPlan));
-        }
-
-        async function saveTripPlanToDB() {
-            try {
-                const response = await fetch(`/api/trip-plans/${tripPlan.id}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(tripPlan)
-                });
-
-                if (!response.ok)
-                    throw new Error("HTTP " + response.status);
-            } catch (err) {
-                console.error("Failed to save trip plan", err);
-            }
-        }
-
-        async function refreshTripPlan() {
-            await loadTripPlanFromDB();
-
-            days = getDatesBetween(
-                tripPlan.startDate,
-                tripPlan.endDate
-            );
-
-            renderBar();
-            renderSchedule();
-            renderCollaborators();
         }
 
         function formatDate(date) {

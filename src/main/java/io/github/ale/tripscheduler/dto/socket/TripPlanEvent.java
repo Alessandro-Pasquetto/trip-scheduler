@@ -7,4 +7,5 @@ import lombok.Getter;
 @AllArgsConstructor
 public class TripPlanEvent {
     private String type;
+    private Object data;
 }

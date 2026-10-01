@@ -2,7 +2,7 @@ package io.github.ale.tripscheduler.service;
 
 import io.github.ale.tripscheduler.dto.ActivityDto;
 import io.github.ale.tripscheduler.dto.CollaboratorDto;
-import io.github.ale.tripscheduler.dto.request.UpdateTripPlanRequest;
+import io.github.ale.tripscheduler.dto.request.UpdateTripPlanDatesRequest;
 import io.github.ale.tripscheduler.dto.response.TripPlanDetailResponse;
 import io.github.ale.tripscheduler.dto.response.TripPlanSummaryResponse;
 import io.github.ale.tripscheduler.dto.socket.TripPlanEvent;
@@ -126,114 +126,6 @@ public class TripPlanService {
     }
 
     @Transactional
-    public void updateTripPlan(Long userId, Long tripPlanId, UpdateTripPlanRequest tripPlan) {
-        TripPlanUser membership = tripPlanUserRepository
-                .findByTripPlanIdAndUserId(tripPlanId, userId)
-                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
-
-        if (membership.getRole() == TripRole.VIEWER)
-            throw new RuntimeException("Permission denied");
-
-        TripPlan existingPlan = membership.getTripPlan();
-
-        existingPlan.setName(tripPlan.getName());
-        existingPlan.setStartDate(tripPlan.getStartDate());
-        existingPlan.setEndDate(tripPlan.getEndDate());
-
-        updatePlanActivities(existingPlan, tripPlan.getActivities());
-
-        messagingTemplate.convertAndSend(
-                "/topic/trip-plan/" + tripPlanId,
-                new TripPlanEvent("UPDATE")
-        );
-    }
-
-    private void updatePlanActivities(TripPlan tripPlan, List<ActivityDto> activities) {
-        List<Activity> existingActivities = activityRepository.findByTripPlanId(tripPlan.getId());
-
-        if (activities == null || activities.isEmpty()) {
-            if (!existingActivities.isEmpty()) {
-                activityRepository.deleteAll(existingActivities);
-                tripPlan.setUpdatedAt(LocalDateTime.now());
-            }
-            return;
-        }
-
-        Map<Long, Activity> existingActivitiesMap = existingActivities.stream()
-                .collect(Collectors.toMap(Activity::getId, activity -> activity));
-
-        Set<Long> requestIds = activities.stream()
-                .map(ActivityDto::getId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        boolean modified = false;
-
-        // DELETE
-        List<Activity> activitiesToDelete = existingActivities.stream()
-                .filter(activity -> !requestIds.contains(activity.getId()))
-                .toList();
-
-        if (!activitiesToDelete.isEmpty()) {
-            activityRepository.deleteAll(activitiesToDelete);
-            modified = true;
-        }
-
-        // ADD + UPDATE
-        List<Activity> activitiesToSave = new ArrayList<>();
-
-        for (ActivityDto dto : activities) {
-            // ADD
-            if (dto.getId() == null) {
-                Activity newActivity = Activity.builder()
-                        .tripPlan(tripPlan)
-                        .name(dto.getName())
-                        .day(dto.getDay())
-                        .startTime(dto.getStartTime())
-                        .endTime(dto.getEndTime())
-                        .description(dto.getDescription())
-                        .category(dto.getCategory())
-                        .build();
-
-                activitiesToSave.add(newActivity);
-                modified = true;
-                continue;
-            }
-
-            // UPDATE
-            Activity existing = existingActivitiesMap.get(dto.getId());
-
-            if (existing != null) {
-                boolean changed =
-                        !Objects.equals(existing.getName(), dto.getName()) ||
-                        !Objects.equals(existing.getDay(), dto.getDay()) ||
-                        !Objects.equals(existing.getStartTime(), dto.getStartTime()) ||
-                        !Objects.equals(existing.getEndTime(), dto.getEndTime()) ||
-                        !Objects.equals(existing.getDescription(), dto.getDescription()) ||
-                        !Objects.equals(existing.getCategory(), dto.getCategory());
-
-                if (changed) {
-                    existing.setName(dto.getName());
-                    existing.setDay(dto.getDay());
-                    existing.setStartTime(dto.getStartTime());
-                    existing.setEndTime(dto.getEndTime());
-                    existing.setDescription(dto.getDescription());
-                    existing.setCategory(dto.getCategory());
-
-                    activitiesToSave.add(existing);
-                    modified = true;
-                }
-            }
-        }
-
-        if (!activitiesToSave.isEmpty())
-            activityRepository.saveAll(activitiesToSave);
-
-        if (modified)
-            tripPlan.setUpdatedAt(LocalDateTime.now());
-    }
-
-    @Transactional
     public void deleteTripPlan(Long userId, Long tripPlanId) {
         TripPlanUser membership = tripPlanUserRepository.findByTripPlanIdAndUserId(tripPlanId, userId)
                 .orElseThrow(() -> new RuntimeException("TripPlan not found"));
@@ -245,7 +137,7 @@ public class TripPlanService {
                 messagingTemplate.convertAndSendToUser(
                         collaborator.getUser().getUsername(),
                         "/queue/notifications",
-                        new TripPlanEvent("PLAN_DELETED")
+                        new TripPlanEvent("PLAN_DELETED", tripPlanId)
                 );
             }
 
@@ -253,6 +145,112 @@ public class TripPlanService {
         }
         else
             tripPlanUserRepository.deleteByTripPlanIdAndUserId(tripPlanId, userId);
+    }
+
+    @Transactional
+    public void updateTripPlanDates(Long userId, Long tripPlanId, UpdateTripPlanDatesRequest request) {
+        TripPlanUser membership = tripPlanUserRepository
+                .findByTripPlanIdAndUserId(tripPlanId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        if (membership.getRole() == TripRole.VIEWER)
+            throw new RuntimeException("Permission denied");
+
+        TripPlan existingPlan = membership.getTripPlan();
+
+        existingPlan.setStartDate(request.getStartDate());
+        existingPlan.setEndDate(request.getEndDate());
+    }
+
+    @Transactional
+    public Long createTripPlanActivity(Long userId, Long tripPlanId, ActivityDto request) {
+
+        TripPlanUser membership = tripPlanUserRepository
+                .findByTripPlanIdAndUserId(tripPlanId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        if (membership.getRole() == TripRole.VIEWER)
+            throw new RuntimeException("Permission denied");
+
+        TripPlan tripPlan = membership.getTripPlan();
+
+        Activity activity = Activity.builder()
+                .tripPlan(tripPlan)
+                .day(request.getDay())
+                .name(request.getName())
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .description(request.getDescription())
+                .category(request.getCategory())
+                .build();
+
+        activityRepository.save(activity);
+
+        request.setId(activity.getId());
+
+        messagingTemplate.convertAndSend(
+                "/topic/trip-plan/" + tripPlanId,
+                new TripPlanEvent("ACTIVITY_ADDED", request)
+        );
+
+        return activity.getId();
+    }
+
+    @Transactional
+    public void updateTripPlanActivity(Long userId, Long tripPlanId, Long activityId, ActivityDto request) {
+
+        TripPlanUser membership = tripPlanUserRepository
+                .findByTripPlanIdAndUserId(tripPlanId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        if (membership.getRole() == TripRole.VIEWER)
+            throw new RuntimeException("Permission denied");
+
+        Activity activity = activityRepository
+                .findById(activityId)
+                .orElseThrow(() -> new RuntimeException("Activity not found"));
+
+        if (!activity.getTripPlan().getId().equals(tripPlanId))
+            throw new RuntimeException("Activity does not belong to this trip plan");
+
+        activity.setDay(request.getDay());
+        activity.setName(request.getName());
+        activity.setStartTime(request.getStartTime());
+        activity.setEndTime(request.getEndTime());
+        activity.setDescription(request.getDescription());
+        activity.setCategory(request.getCategory());
+
+        activityRepository.save(activity);
+
+        messagingTemplate.convertAndSend(
+                "/topic/trip-plan/" + tripPlanId,
+                new TripPlanEvent("ACTIVITY_UPDATED", request)
+        );
+    }
+
+    @Transactional
+    public void deleteTripPlanActivity(Long userId, Long tripPlanId, Long activityId) {
+
+        TripPlanUser membership = tripPlanUserRepository
+                .findByTripPlanIdAndUserId(tripPlanId, userId)
+                .orElseThrow(() -> new RuntimeException("TripPlan not found"));
+
+        if (membership.getRole() == TripRole.VIEWER)
+            throw new RuntimeException("Permission denied");
+
+        Activity activity = activityRepository
+                .findById(activityId)
+                .orElseThrow(() -> new RuntimeException("Activity not found"));
+
+        if (!activity.getTripPlan().getId().equals(tripPlanId))
+            throw new RuntimeException("Activity does not belong to this trip plan");
+
+        activityRepository.delete(activity);
+
+        messagingTemplate.convertAndSend(
+                "/topic/trip-plan/" + tripPlanId,
+                new TripPlanEvent("ACTIVITY_DELETED", activityId)
+        );
     }
 
     // todo: temporary until invites are implemented
@@ -284,7 +282,7 @@ public class TripPlanService {
         messagingTemplate.convertAndSendToUser(
                 collaboratorUsername,
                 "/queue/notifications",
-                new TripPlanEvent("PLAN_ADDED")
+                new TripPlanEvent("PLAN_ADDED", null)
         );
     }
 }
